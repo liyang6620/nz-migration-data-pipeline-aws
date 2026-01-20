@@ -1,108 +1,171 @@
-# NZ Migration Data Pipeline (AWS)
+# NZ Migration Reporting Pipeline (AWS)
 
-## Overview
+## Project Overview
 
-This repository contains an AWS-based data pipeline for ingesting and operationalising official New Zealand international migration data published by Statistics New Zealand.
+This project implements a data pipeline used by an internal **Analytics and Reporting team** to support recurring monthly reporting on New Zealand long-term migration trends.
 
-The pipeline is designed to convert monthly CSV releases into analytics-ready datasets that can be reliably queried and reused by downstream analysis and reporting workflows.
+The Analytics team produces standard reports and dashboards tracking **monthly arrivals, departures, and net migration**. The source data published by Statistics New Zealand (Stats NZ) is released as monthly CSV files and may revise historical values over time. As a result, direct analysis of raw release files leads to inconsistent results and non-reproducible reports.
+
+This pipeline provides the Analytics team with a **stable, analytics-ready dataset and a small set of standard query views** that act as the single source of truth for migration reporting. The focus of the project is to ensure that the same report generated at different points in time produces consistent results, even when upstream data is revised.
 
 ---
 
-## Data Source & Licensing
+## Primary User and Usage
 
-Data is sourced from Statistics New Zealand (Stats NZ).
+**Primary user:** Internal Analytics and Reporting team  
+**Usage frequency:** Monthly reporting cycle  
 
-Source release:
+The Analytics team uses the outputs of this pipeline to:
+
+- Generate a fixed monthly KPI pack covering arrivals, departures, and net migration
+- Populate dashboards used for internal trend monitoring
+- Perform consistent month-over-month comparisons without reprocessing raw CSV files
+- Reproduce historical reports when questions arise about prior results
+
+The pipeline is not intended for policy analysis or forecasting. Its sole purpose is to provide **reliable and repeatable reporting data**.
+
+---
+
+## Problem Statement
+
+Without an engineered ingestion layer, migration reports built directly on Stats NZ release files suffer from three operational issues:
+
+1. **Historical revisions** cause previously reported numbers to change unexpectedly  
+2. **Schema inconsistencies** across releases increase downstream maintenance effort  
+3. **Lack of version control** makes it difficult to reproduce past reports  
+
+This project solves these problems by introducing a controlled ingestion and curation process that stabilises the data before it reaches analysts.
+
+---
+
+## Data Source
+
+Data is sourced from official releases published by **Statistics New Zealand (Stats NZ)**.
+
+Example release page:  
 https://www.stats.govt.nz/information-releases/international-migration-october-2025/
 
-This project uses the data for internal processing and analytical purposes only.  
-All transformations and interpretations are independent and do not represent official Stats NZ publications.
+The dataset is used as a publicly available external input. All transformations and derived outputs are independent and do not represent official Stats NZ publications.
 
 ---
 
-## What This Pipeline Does
+## Pipeline Outputs
 
-At a high level, the pipeline performs the following steps:
+The pipeline produces three core outputs consumed by the Analytics team.
 
-- Ingests monthly migration release data into an S3-based raw data zone
-- Cleans and standardises the source data
-- Converts data into partitioned Parquet format for efficient querying
-- Applies data quality checks and records quality metrics per run
-- Stores curated datasets for downstream analytical use
-- Supports optional scheduled execution aligned with data releases
+### 1) Curated Migration Fact Dataset
+
+- Stored in Amazon S3
+- Format: Parquet
+- Partitioned by `year_month`
+- Schema standardised and enforced across runs
+
+This dataset serves as the base fact table for all reporting queries.
+
+---
+
+### 2) Reporting Views (Athena)
+
+A small, fixed set of Athena views defines the reporting logic used by analysts, including:
+
+- Monthly long-term arrivals
+- Monthly long-term departures
+- Monthly net migration (arrivals minus departures)
+- Optional breakdowns by visa type and citizenship
+
+These views represent the **official internal reporting definitions** and are reused across reports and dashboards.
+
+---
+
+### 3) Run Metadata and Data Quality Summary
+
+Each pipeline execution records:
+
+- Source release identifier
+- Processing timestamp
+- Raw vs curated row counts
+- Basic validation results
+
+This metadata supports traceability and helps diagnose discrepancies in reporting outputs.
+
+---
+
+## Key Engineering Decisions
+
+### Handling Revised Source Data
+
+Stats NZ migration data may revise historical values in later releases. To preserve reporting consistency, the pipeline supports an explicit revision-handling strategy:
+
+- **Final-only mode (default):** Reporting views use records marked as `Final` to ensure month-over-month comparability.
+- **Latest-release mode (optional):** Keeps the most recent record per month for near-real-time monitoring.
+
+The selected mode is documented and reproducible.
+
+---
+
+### Idempotent Execution
+
+The pipeline is designed to be safely re-run:
+
+- Deterministic output paths
+- Controlled overwrite strategy
+- No duplicate record creation across runs
+
+---
+
+### Schema Stability
+
+To minimise downstream breakage, the pipeline enforces:
+
+- Fixed column names and data types
+- Controlled categorical values where applicable
+- Schema validation prior to writing curated outputs
+
+---
+
+### Cost Control
+
+- Parquet format to reduce query scan volume
+- Time-based partitioning for efficient filtering
+- Serverless execution to avoid idle compute cost
 
 ---
 
 ## Architecture
 
-The pipeline uses a serverless AWS architecture focused on simplicity, reliability, and cost control.
+The pipeline uses a **serverless AWS architecture**:
 
-Core components include:
+- **Amazon S3** – raw data, curated datasets, run metadata  
+- **AWS Lambda** – ingestion and transformation logic  
+- **Amazon Athena** – analytical querying and reporting views  
+- **Amazon EventBridge** – optional monthly scheduling  
+- **Amazon CloudWatch** – logging and monitoring  
 
-- Amazon S3 for raw, curated, and quality datasets
-- AWS Lambda for data ingestion and transformation
-- Amazon Athena for analytical querying
-- Amazon EventBridge for optional scheduling
-- Amazon CloudWatch for logging and monitoring
-
-An architecture diagram will be added as the implementation progresses.
+An architecture diagram will be added as implementation progresses.
 
 ---
 
 ## Data Quality and Validation
 
-Data quality checks are applied during each pipeline run to ensure consistency and reliability of downstream datasets.
+Each run performs basic data quality checks, including:
 
-These checks include schema validation, basic value constraints, and tracking of missing or invalid records.  
-Each execution produces a run-level quality report, with selected metrics appended to a historical quality log for trend monitoring.
+- Schema validation
+- Non-null checks on key fields
+- Row count comparison between raw and curated layers
 
-Detailed rules and validation logic are documented under `quality/`.
-
----
-
-## Analytics and Query Layer
-
-Curated datasets are stored in partitioned Parquet format and exposed via Athena tables and views.
-
-This allows downstream users to perform common analytical queries such as:
-- Monthly arrivals and departures
-- Net migration trends over time
-- Breakdown by citizenship, visa type, and country of last permanent residence
-
-Representative query outputs will be included once the pipeline is executed.
+Quality metrics are written per run and appended to a historical log for monitoring.
 
 ---
 
 ## Automation and Scheduling
 
-The pipeline supports scheduled execution using Amazon EventBridge.
+The pipeline supports monthly execution aligned with official data releases.
 
-For cost-control and demonstration purposes, scheduling is disabled by default.  
-In a production environment, the pipeline would typically run on a monthly cadence aligned with official data releases.
-
----
-
-## Operational Considerations
-
-The pipeline is designed with operational concerns in mind, including:
-
-- Idempotent execution to support safe re-runs
-- Structured logging for traceability
-- Basic monitoring and failure detection
-- Clear separation of raw and curated data
-
-Operational procedures and recovery steps will be documented under `docs/`.
-
----
-
-## Cost Control
-
-The architecture avoids always-on resources and relies on serverless services to minimise cost.
-
-Partitioned Parquet storage is used to reduce query scan volume, and all resources can be fully removed after use to avoid ongoing charges.
+For cost control and demonstration purposes, scheduling is disabled by default and runs are triggered manually.
 
 ---
 
 ## Reproducibility and Cleanup
 
-Deployment and cleanup instructions will be documented to ensure the environment can be reproduced and fully torn down when no longer required.
+Deployment and teardown instructions will be provided to allow the environment to be recreated and fully removed when no longer required.
+
