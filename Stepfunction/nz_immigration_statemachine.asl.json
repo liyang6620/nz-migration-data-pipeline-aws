@@ -1,0 +1,237 @@
+{
+  "Comment": "NZ Migration pipeline: Run Raw Crawler -> Resolve latest snapshot -> CLEAN curated -> Glue ETL (latest) -> Athena DQ -> Persist DQ to quality table",
+  "StartAt": "BuildContext",
+  "States": {
+    "BuildContext": {
+      "Type": "Pass",
+      "Parameters": {
+        "athena_db": "nz_migration",
+        "athena_results": "s3://nz-migration-data-yangli/metadata/athena-results/",
+        "glue_job_name": "nz_migration_arrivals_curated_job",
+        "raw_crawler_name": "nz-migration-raw-crawler",
+        "window_months": 24,
+        "quality_dq_prefix": "s3://nz-migration-data-yangli/quality/dq/migration_arrivals_fullscan/",
+        "curated_bucket": "nz-migration-data-yangli",
+        "curated_prefix": "curated/migration_arrivals_facts/Arrivals/Long-term/"
+      },
+      "ResultPath": "$.ctx",
+      "Next": "RunRawCrawler"
+    },
+    "RunRawCrawler": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:glue:startCrawler",
+      "Parameters": {
+        "Name.$": "$.ctx.raw_crawler_name"
+      },
+      "ResultPath": "$.raw_crawler_start",
+      "Next": "WaitCrawler"
+    },
+    "WaitCrawler": {
+      "Type": "Wait",
+      "Seconds": 15,
+      "Next": "CheckCrawler"
+    },
+    "CheckCrawler": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:glue:getCrawler",
+      "Parameters": {
+        "Name.$": "$.ctx.raw_crawler_name"
+      },
+      "ResultPath": "$.crawler",
+      "Next": "CrawlerDone?"
+    },
+    "CrawlerDone?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.crawler.Crawler.State",
+          "StringEquals": "READY",
+          "Next": "GetLatestSnapshotQuery"
+        }
+      ],
+      "Default": "WaitCrawler"
+    },
+    "GetLatestSnapshotQuery": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
+      "Parameters": {
+        "QueryExecutionContext": {
+          "Database.$": "$.ctx.athena_db"
+        },
+        "ResultConfiguration": {
+          "OutputLocation.$": "$.ctx.athena_results"
+        },
+        "QueryString": "SELECT max(snapshot_month) AS latest_snapshot FROM nz_migration.raw_stats_nz_international_migration"
+      },
+      "ResultPath": "$.latest_snapshot_query",
+      "Next": "FetchLatestSnapshotResult"
+    },
+    "FetchLatestSnapshotResult": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:athena:getQueryResults",
+      "Parameters": {
+        "QueryExecutionId.$": "$.latest_snapshot_query.QueryExecution.QueryExecutionId",
+        "MaxResults": 10
+      },
+      "ResultPath": "$.latest_snapshot_result",
+      "Next": "SetLatestSnapshot"
+    },
+    "SetLatestSnapshot": {
+      "Type": "Pass",
+      "Parameters": {
+        "ctx.$": "$.ctx",
+        "dq_sql.$": "$.dq_sql",
+        "dq_insert_sql.$": "$.dq_insert_sql",
+        "snapshot_month.$": "$.latest_snapshot_result.ResultSet.Rows[1].Data[0].VarCharValue"
+      },
+      "ResultPath": "$",
+      "Next": "CleanCurated_ListFirst"
+    },
+    "CleanCurated_ListFirst": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:s3:listObjectsV2",
+      "Parameters": {
+        "Bucket.$": "$.ctx.curated_bucket",
+        "Prefix.$": "$.ctx.curated_prefix",
+        "MaxKeys": 200
+      },
+      "ResultPath": "$.clean.page",
+      "Next": "CleanCurated_HasObjects?"
+    },
+    "CleanCurated_HasObjects?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.clean.page.KeyCount",
+          "NumericGreaterThan": 0,
+          "Next": "CleanCurated_ExtractKeys"
+        }
+      ],
+      "Default": "RunGlueETL"
+    },
+    "CleanCurated_ExtractKeys": {
+      "Type": "Pass",
+      "Parameters": {
+        "ctx.$": "$.ctx",
+        "dq_sql.$": "$.dq_sql",
+        "dq_insert_sql.$": "$.dq_insert_sql",
+        "snapshot_month.$": "$.snapshot_month",
+        "clean": {
+          "page.$": "$.clean.page",
+          "keys.$": "$.clean.page.Contents[*].Key"
+        }
+      },
+      "ResultPath": "$",
+      "Next": "CleanCurated_DeleteEachKey"
+    },
+    "CleanCurated_DeleteEachKey": {
+      "Type": "Map",
+      "ItemsPath": "$.clean.keys",
+      "MaxConcurrency": 20,
+      "ResultPath": null,
+      "ItemSelector": {
+        "bucket.$": "$.ctx.curated_bucket",
+        "key.$": "$$.Map.Item.Value"
+      },
+      "Iterator": {
+        "StartAt": "DeleteOne",
+        "States": {
+          "DeleteOne": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::aws-sdk:s3:deleteObject",
+            "Parameters": {
+              "Bucket.$": "$.bucket",
+              "Key.$": "$.key"
+            },
+            "End": true
+          }
+        }
+      },
+      "Next": "CleanCurated_HasMore?"
+    },
+    "CleanCurated_HasMore?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.clean.page.IsTruncated",
+          "BooleanEquals": true,
+          "Next": "CleanCurated_SetToken"
+        }
+      ],
+      "Default": "RunGlueETL"
+    },
+    "CleanCurated_SetToken": {
+      "Type": "Pass",
+      "Parameters": {
+        "ctx.$": "$.ctx",
+        "dq_sql.$": "$.dq_sql",
+        "dq_insert_sql.$": "$.dq_insert_sql",
+        "snapshot_month.$": "$.snapshot_month",
+        "clean": {
+          "token.$": "$.clean.page.NextContinuationToken"
+        }
+      },
+      "ResultPath": "$",
+      "Next": "CleanCurated_ListNext"
+    },
+    "CleanCurated_ListNext": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:s3:listObjectsV2",
+      "Parameters": {
+        "Bucket.$": "$.ctx.curated_bucket",
+        "Prefix.$": "$.ctx.curated_prefix",
+        "MaxKeys": 200,
+        "ContinuationToken.$": "$.clean.token"
+      },
+      "ResultPath": "$.clean.page",
+      "Next": "CleanCurated_HasObjects?"
+    },
+    "RunGlueETL": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::glue:startJobRun.sync",
+      "Parameters": {
+        "JobName.$": "$.ctx.glue_job_name",
+        "Arguments": {
+          "--run_mode": "incremental",
+          "--window_months.$": "States.Format('{}', $.ctx.window_months)",
+          "--snapshot_month.$": "$.snapshot_month"
+        }
+      },
+      "ResultPath": "$.glue_result",
+      "Next": "RunAthenaDQ"
+    },
+    "RunAthenaDQ": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
+      "Parameters": {
+        "QueryExecutionContext": {
+          "Database.$": "$.ctx.athena_db"
+        },
+        "ResultConfiguration": {
+          "OutputLocation.$": "$.ctx.athena_results"
+        },
+        "QueryString.$": "$.dq_sql"
+      },
+      "ResultPath": "$.dq_query",
+      "Next": "PersistDQToQuality"
+    },
+    "PersistDQToQuality": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
+      "Parameters": {
+        "QueryExecutionContext": {
+          "Database.$": "$.ctx.athena_db"
+        },
+        "ResultConfiguration": {
+          "OutputLocation.$": "$.ctx.athena_results"
+        },
+        "QueryString.$": "$.dq_insert_sql"
+      },
+      "ResultPath": "$.dq_persist",
+      "Next": "Succeed"
+    },
+    "Succeed": {
+      "Type": "Succeed"
+    }
+  }
+}
