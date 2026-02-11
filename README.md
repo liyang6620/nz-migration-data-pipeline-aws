@@ -1,105 +1,120 @@
 # NZ Migration Reporting Pipeline (AWS)
 
+## Production-style Serverless Data Engineering Project
+
+---
+
 ## Project Overview
 
-This project implements a data pipeline used by an internal **Analytics and Reporting team** to support recurring monthly reporting on New Zealand long-term migration trends.
+This project implements a serverless data pipeline designed to support recurring monthly reporting on New Zealand long-term migration trends.
 
-The Analytics team produces standard reports and dashboards tracking **monthly arrivals, departures, and net migration**. The source data published by Statistics New Zealand (Stats NZ) is released as monthly CSV files and may revise historical values over time. As a result, direct analysis of raw release files leads to inconsistent results and non-reproducible reports.
+The pipeline ingests official migration release data from **Statistics New Zealand (Stats NZ)**, stabilises revised historical records, and produces a consistent, analytics-ready dataset used by an internal Analytics & Reporting team.
 
-This pipeline provides the Analytics team with a **stable, analytics-ready dataset and a small set of standard query views** that act as the single source of truth for migration reporting. The focus of the project is to ensure that the same report generated at different points in time produces consistent results, even when upstream data is revised.
+The primary goal is to ensure that reports generated at different points in time remain **reproducible**, even when upstream source data is revised.
 
 ---
 
 ## Primary User and Usage
 
-**Primary user:** Internal Analytics and Reporting team  
+**Primary user:** Internal Analytics & Reporting team  
 **Usage frequency:** Monthly reporting cycle  
 
 The Analytics team uses the outputs of this pipeline to:
 
-- Generate a fixed monthly KPI pack covering arrivals, departures, and net migration
-- Populate dashboards used for internal trend monitoring
-- Perform consistent month-over-month comparisons without reprocessing raw CSV files
-- Reproduce historical reports when questions arise about prior results
+- Generate a monthly KPI pack (arrivals, departures, net migration)
+- Populate dashboards for trend monitoring
+- Perform consistent month-over-month comparisons
+- Reproduce historical reports when questions arise about past results
 
-The pipeline is not intended for policy analysis or forecasting. Its sole purpose is to provide **reliable and repeatable reporting data**.
+This pipeline is not intended for policy analysis or forecasting. Its sole purpose is to provide **reliable and repeatable reporting data**.
 
 ---
 
 ## Problem Statement
 
-Without an engineered ingestion layer, migration reports built directly on Stats NZ release files suffer from three operational issues:
+Without an engineered ingestion layer, migration reporting built directly on Stats NZ release files suffers from:
 
-1. **Historical revisions** cause previously reported numbers to change unexpectedly  
-2. **Schema inconsistencies** across releases increase downstream maintenance effort  
-3. **Lack of version control** makes it difficult to reproduce past reports  
+1. **Historical revisions** that change previously reported values  
+2. **Schema inconsistencies** that increase maintenance effort  
+3. **Lack of reproducibility** for past reporting cycles  
 
-This project solves these problems by introducing a controlled ingestion and curation process that stabilises the data before it reaches analysts.
+This project solves these issues by introducing a controlled ingestion and curation process that stabilises the data before it reaches analysts.
 
 ---
 
 ## Data Source
 
-Data is sourced from official releases published by **Statistics New Zealand (Stats NZ)**.
+Official public releases published by **Statistics New Zealand (Stats NZ)**:
 
-Example release page:  
 https://www.stats.govt.nz/information-releases/international-migration-october-2025/
 
-The dataset is used as a publicly available external input. All transformations and derived outputs are independent and do not represent official Stats NZ publications.
+The dataset is used as an external input only. All transformations and derived outputs are independent and do not represent official Stats NZ publications.
+
+---
+
+## Key Features
+
+- Automated ingestion and transformation of Stats NZ migration releases
+- Revision-aware handling strategy (supports reproducible reporting)
+- Idempotent execution (safe re-runs without duplication)
+- Partitioned Parquet dataset optimised for analytics queries
+- Standardised reporting views (semantic layer) in Amazon Athena
+- Data quality checks and run-level metadata for traceability
+- Fully serverless architecture with cost-efficient design
 
 ---
 
 ## Pipeline Outputs
 
-The pipeline produces three core outputs consumed by the Analytics team.
+### 1) Curated Migration Fact Dataset (S3)
 
-### 1) Curated Migration Fact Dataset
+- Stored in Amazon S3  
+- Format: Parquet  
+- Partitioned by `year_month`  
+- Schema standardised across runs  
 
-- Stored in Amazon S3
-- Format: Parquet
-- Partitioned by `year_month`
-- Schema standardised and enforced across runs
+This dataset serves as the **single source of truth** for reporting.
 
-This dataset serves as the base fact table for all reporting queries.
-
----
-
-### 2) Reporting Views (Athena)
-
-A small, fixed set of Athena views defines the reporting logic used by analysts, including:
-
-- Monthly long-term arrivals
-- Monthly long-term departures
-- Monthly net migration (arrivals minus departures)
-- Optional breakdowns by visa type and citizenship
-
-These views represent the **official internal reporting definitions** and are reused across reports and dashboards.
+**Example partition path:**
+- `s3://nz-migration-data-yangli/curated/migration_arrivals_facts/Arrivals/Long-term/year_month=2001-06/`
 
 ---
 
-### 3) Run Metadata and Data Quality Summary
+### 2) Reporting Views (Amazon Athena)
 
-Each pipeline execution records:
+A small, fixed set of Athena views defines the reporting logic used by analysts. These views act as the **semantic layer** between curated data and dashboards / KPI packs.
 
-- Source release identifier
+| View | Purpose | Typical Consumer |
+|------|---------|------------------|
+| `vw_arrivals_facts` | Cleaned fact-level arrivals dataset used as the base for downstream reporting | Analysts / modelling layer |
+| `vw_arrivals_monthly_kpi` | Monthly KPI time series for long-term arrivals (report-ready aggregation) | KPI pack / dashboards |
+| `vw_arrivals_by_visa_monthly` | Monthly arrivals grouped by visa category for segmentation reporting | Breakdown reporting |
+| `vw_arrivals_by_country_monthly` | Monthly arrivals grouped by country/citizenship for geo reporting | Trend monitoring |
+
+These views standardise definitions (filters, grouping logic, consistent field naming) so reporting remains reproducible across cycles.
+
+---
+
+### 3) Run Metadata & Data Quality Summary
+
+Each pipeline execution records operational metadata for traceability:
+
+- Snapshot / release identifier
 - Processing timestamp
-- Raw vs curated row counts
-- Basic validation results
+- Validation results (basic DQ rules)
 
-This metadata supports traceability and helps diagnose discrepancies in reporting outputs.
+This supports investigation and reproducibility when data questions arise.
 
 ---
 
-## Key Engineering Decisions
+## Engineering Design
 
-### Handling Revised Source Data
+### Revision Handling Strategy
 
-Stats NZ migration data may revise historical values in later releases. To preserve reporting consistency, the pipeline supports an explicit revision-handling strategy:
+Stats NZ migration data may revise historical values in later releases. The pipeline is built to support reproducible reporting under revision.
 
-- **Final-only mode (default):** Reporting views use records marked as `Final` to ensure month-over-month comparability.
-- **Latest-release mode (optional):** Keeps the most recent record per month for near-real-time monitoring.
-
-The selected mode is documented and reproducible.
+- **Stable reporting mode:** prioritises consistency across reporting cycles (default)
+- **Optional latest mode:** can be used for near-real-time monitoring where appropriate
 
 ---
 
@@ -108,14 +123,14 @@ The selected mode is documented and reproducible.
 The pipeline is designed to be safely re-run:
 
 - Deterministic output paths
-- Controlled overwrite strategy
+- Controlled overwrite / cleanup strategy before write
 - No duplicate record creation across runs
 
 ---
 
 ### Schema Stability
 
-To minimise downstream breakage, the pipeline enforces:
+To minimise downstream breakage:
 
 - Fixed column names and data types
 - Controlled categorical values where applicable
@@ -123,49 +138,25 @@ To minimise downstream breakage, the pipeline enforces:
 
 ---
 
-### Cost Control
+### Cost Optimisation
 
-- Parquet format to reduce query scan volume
-- Time-based partitioning for efficient filtering
-- Serverless execution to avoid idle compute cost
+- Parquet format reduces Athena scan cost
+- Time-based partitioning enables partition pruning
+- Fully serverless services avoid idle infrastructure cost
 
 ---
 
 ## Architecture
 
-The pipeline uses a **serverless AWS architecture**:
+Serverless AWS stack:
 
-- **Amazon S3** – raw data, curated datasets, run metadata  
-- **AWS Lambda** – ingestion and transformation logic  
-- **Amazon Athena** – analytical querying and reporting views  
-- **Amazon EventBridge** – optional monthly scheduling  
-- **Amazon CloudWatch** – logging and monitoring  
+- **Amazon S3** – raw data, curated datasets, metadata / quality logs  
+- **AWS Glue** – ETL transformation and schema enforcement  
+- **AWS Step Functions** – orchestration (crawler → snapshot resolution → clean → ETL → DQ)  
+- **Amazon Athena** – reporting views and quality queries  
+- **Amazon EventBridge** – optional scheduling trigger  
 
-An architecture diagram will be added as implementation progresses.
+ORDER BY year_month DESC
+LIMIT 24;
 
----
-
-## Data Quality and Validation
-
-Each run performs basic data quality checks, including:
-
-- Schema validation
-- Non-null checks on key fields
-- Row count comparison between raw and curated layers
-
-Quality metrics are written per run and appended to a historical log for monitoring.
-
----
-
-## Automation and Scheduling
-
-The pipeline supports monthly execution aligned with official data releases.
-
-For cost control and demonstration purposes, scheduling is disabled by default and runs are triggered manually.
-
----
-
-## Reproducibility and Cleanup
-
-Deployment and teardown instructions will be provided to allow the environment to be recreated and fully removed when no longer required.
 
