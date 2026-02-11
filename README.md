@@ -109,15 +109,6 @@ This supports investigation and reproducibility when data questions arise.
 
 ## Engineering Design
 
-### Revision Handling Strategy
-
-Stats NZ migration data may revise historical values in later releases. The pipeline is built to support reproducible reporting under revision.
-
-- **Stable reporting mode:** prioritises consistency across reporting cycles (default)
-- **Optional latest mode:** can be used for near-real-time monitoring where appropriate
-
----
-
 ### Idempotent Execution
 
 The pipeline is designed to be safely re-run:
