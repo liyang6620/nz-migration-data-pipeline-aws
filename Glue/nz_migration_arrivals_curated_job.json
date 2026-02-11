@@ -1,0 +1,150 @@
+{
+	"jobConfig": {
+		"name": "nz_migration_arrivals_curated_job",
+		"description": "",
+		"role": "arn:aws:iam::941377158316:role/service-role/AWSGlueServiceRole-nz-migration",
+		"command": "glueetl",
+		"version": "5.0",
+		"runtime": null,
+		"workerType": "G.1X",
+		"numberOfWorkers": 10,
+		"maxCapacity": 10,
+		"jobRunQueuingEnabled": false,
+		"maxRetries": 0,
+		"timeout": 480,
+		"maxConcurrentRuns": 1,
+		"security": "none",
+		"scriptName": "nz_migration_arrivals_curated_job.py",
+		"scriptLocation": "s3://aws-glue-assets-941377158316-us-east-1/scripts/",
+		"language": "python-3",
+		"spark": true,
+		"sparkConfiguration": "standard",
+		"jobParameters": [
+			{
+				"key": "--conf",
+				"value": "spark.sql.sources.partitionOverwriteMode=dynamic",
+				"existing": false
+			}
+		],
+		"tags": [],
+		"jobMode": "DEVELOPER_MODE",
+		"createdOn": "2026-02-02T03:06:06.820Z",
+		"developerMode": true,
+		"connectionsList": [],
+		"temporaryDirectory": "s3://aws-glue-assets-941377158316-us-east-1/temporary/",
+		"glueHiveMetastore": true,
+		"etlAutoTuning": true,
+		"metrics": true,
+		"observabilityMetrics": true,
+		"bookmark": "job-bookmark-disable",
+		"sparkPath": "s3://aws-glue-assets-941377158316-us-east-1/sparkHistoryLogs/",
+		"flexExecution": false,
+		"minFlexWorkers": null,
+		"maintenanceWindow": null
+	},
+	"dag": {
+		"node-1770000880432": {
+			"nodeId": "node-1770000880432",
+			"dataPreview": false,
+			"previewAmount": 0,
+			"inputs": [
+				"node-1770000725150"
+			],
+			"name": "nz_migration_target",
+			"generatedNodeName": "nz_migration_target_node1770000880432",
+			"classification": "DataSink",
+			"type": "S3",
+			"streamingBatchInterval": 100,
+			"format": "glueparquet",
+			"compression": "snappy",
+			"numberTargetPartitions": "0",
+			"path": "s3://nz-migration-data-yangli/curated/migration_arrivals_facts/Arrivals/Long-term/",
+			"partitionKeys": [
+				"year_month"
+			],
+			"schemaChangePolicy": {
+				"enableUpdateCatalog": true,
+				"updateBehavior": "UPDATE_IN_DATABASE",
+				"database": "nz_migration",
+				"table": "migration_arrivals_monthly"
+			},
+			"updateCatalogOptions": "schemaAndPartitions",
+			"autoDataQuality": {
+				"isEnabled": false,
+				"evaluationContext": null
+			},
+			"calculatedType": "",
+			"codeGenVersion": 2
+		},
+		"node-1770000725150": {
+			"nodeId": "node-1770000725150",
+			"dataPreview": false,
+			"previewAmount": 0,
+			"inputs": [
+				"node-1770000559065"
+			],
+			"name": "nz_migration_filter",
+			"generatedNodeName": "nz_migration_filter_node1770000725150",
+			"classification": "Transform",
+			"type": "Filter",
+			"logicalOperator": "AND",
+			"filters": [
+				{
+					"operation": "REGEX",
+					"negated": false,
+					"values": [
+						{
+							"type": "CONSTANT",
+							"value": [
+								"Arrivals"
+							]
+						},
+						{
+							"type": "COLUMNEXTRACTED",
+							"value": "direction"
+						}
+					]
+				},
+				{
+					"operation": "REGEX",
+					"negated": false,
+					"values": [
+						{
+							"type": "CONSTANT",
+							"value": [
+								"Long-term migrant"
+							]
+						},
+						{
+							"type": "COLUMNEXTRACTED",
+							"value": "passenger_type"
+						}
+					]
+				}
+			],
+			"parentsValid": true,
+			"calculatedType": "",
+			"codeGenVersion": 2
+		},
+		"node-1770000559065": {
+			"nodeId": "node-1770000559065",
+			"dataPreview": false,
+			"previewAmount": 0,
+			"inputs": [],
+			"name": "nz_migration_source",
+			"generatedNodeName": "nz_migration_source_node1770000559065",
+			"classification": "DataSource",
+			"type": "Catalog",
+			"isCatalog": true,
+			"database": "nz_migration",
+			"table": "raw_stats_nz_international_migration",
+			"partitionPredicate": "",
+			"calculatedType": "",
+			"runtimeParameters": [],
+			"codeGenVersion": 2
+		}
+	},
+	"hasBeenSaved": false,
+	"usageProfileName": null,
+	"script": "import sys\r\nfrom awsglue.transforms import *\r\nfrom awsglue.utils import getResolvedOptions\r\nfrom pyspark.context import SparkContext\r\nfrom awsglue.context import GlueContext\r\nfrom awsglue.job import Job\r\nimport re\r\n\r\nargs = getResolvedOptions(sys.argv, ['JOB_NAME', 'snapshot_month'])\r\nSNAPSHOT_MONTH = args['snapshot_month']\r\n\r\nsc = SparkContext()\r\nglueContext = GlueContext(sc)\r\nspark = glueContext.spark_session\r\njob = Job(glueContext)\r\njob.init(args['JOB_NAME'], args)\r\n\r\nnz_migration_source_node1770000559065 = glueContext.create_dynamic_frame.from_catalog(\r\n    database=\"nz_migration\",\r\n    table_name=\"raw_stats_nz_international_migration\",\r\n    transformation_ctx=\"nz_migration_source_node1770000559065\"\r\n)\r\n\r\nnz_migration_snapshot_filter = Filter.apply(\r\n    frame=nz_migration_source_node1770000559065,\r\n    f=lambda row: row[\"snapshot_month\"] == SNAPSHOT_MONTH\r\n)\r\n\r\nnz_migration_filter_node1770000725150 = Filter.apply(\r\n    frame=nz_migration_snapshot_filter,\r\n    f=lambda row: (\r\n        bool(re.match(\"Arrivals\", row[\"direction\"])) and\r\n        bool(re.match(\"Long-term migrant\", row[\"passenger_type\"]))\r\n    ),\r\n    transformation_ctx=\"nz_migration_filter_node1770000725150\"\r\n)\r\n\r\nnz_migration_target_node1770000880432 = glueContext.getSink(\r\n    path=\"s3://nz-migration-data-yangli/curated/migration_arrivals_facts/Arrivals/Long-term/\",\r\n    connection_type=\"s3\",\r\n    updateBehavior=\"UPDATE_IN_DATABASE\",\r\n    partitionKeys=[\"year_month\"],\r\n    enableUpdateCatalog=True,\r\n    transformation_ctx=\"nz_migration_target_node1770000880432\"\r\n)\r\nnz_migration_target_node1770000880432.setCatalogInfo(\r\n    catalogDatabase=\"nz_migration\",\r\n    catalogTableName=\"migration_arrivals_monthly\"\r\n)\r\nnz_migration_target_node1770000880432.setFormat(\"glueparquet\", compression=\"snappy\")\r\nnz_migration_target_node1770000880432.writeFrame(nz_migration_filter_node1770000725150)\r\n\r\njob.commit()\r\n"
+}
