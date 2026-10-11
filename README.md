@@ -1,5 +1,7 @@
 # NZ Migration Reporting Pipeline (AWS)
 
+[![CI](https://github.com/liyang6620/nz-migration-data-pipeline-aws/actions/workflows/ci.yml/badge.svg)](https://github.com/liyang6620/nz-migration-data-pipeline-aws/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ## Production-style Serverless Data Engineering Project
 
 ---
