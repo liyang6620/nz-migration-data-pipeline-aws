@@ -31,6 +31,13 @@ class PipelineAssetTests(unittest.TestCase):
         sql = (ROOT / "Athena" / "views.sql").read_text(encoding="utf-8")
         self.assertGreaterEqual(sql.upper().count("CREATE OR REPLACE VIEW"), 3)
 
+    def test_reporting_views_select_one_cube_slice_without_resumming(self):
+        sql = (ROOT / "Athena" / "views.sql").read_text(encoding="utf-8")
+        self.assertIn("metric_slice = 'total'", sql)
+        self.assertIn("metric_slice = 'country_of_residence'", sql)
+        self.assertIn("metric_slice = 'visa'", sql)
+        self.assertNotIn("SUM(estimate)", sql)
+
 
 if __name__ == "__main__":
     unittest.main()

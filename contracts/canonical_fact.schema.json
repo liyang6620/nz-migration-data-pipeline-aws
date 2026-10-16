@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/liyang6620/nz-migration-data-pipeline-aws/contracts/canonical_fact.schema.json",
+  "title": "NZ Migration Canonical Fact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "release_id",
+    "snapshot_month",
+    "source_release_month",
+    "year_month",
+    "passenger_type",
+    "direction",
+    "citizenship",
+    "visa",
+    "country_of_residence",
+    "metric_slice",
+    "estimate",
+    "standard_error",
+    "status",
+    "source_sha256",
+    "ingested_at",
+    "schema_version"
+  ],
+  "properties": {
+    "release_id": {"type": "string", "minLength": 1},
+    "snapshot_month": {"type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"},
+    "source_release_month": {"type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"},
+    "year_month": {"type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"},
+    "passenger_type": {"const": "Long-term migrant"},
+    "direction": {"const": "Arrivals"},
+    "citizenship": {"type": "string", "minLength": 1},
+    "visa": {"type": "string", "minLength": 1},
+    "country_of_residence": {"type": "string", "minLength": 1},
+    "metric_slice": {
+      "enum": [
+        "total",
+        "citizenship",
+        "visa",
+        "country_of_residence",
+        "citizenship_visa",
+        "citizenship_country_of_residence",
+        "visa_country_of_residence",
+        "citizenship_visa_country_of_residence"
+      ]
+    },
+    "estimate": {"type": "integer", "minimum": 0},
+    "standard_error": {"type": "number", "minimum": 0},
+    "status": {"enum": ["Final", "Provisional"]},
+    "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "ingested_at": {"type": "string", "format": "date-time"},
+    "schema_version": {"const": "1.0.0"}
+  }
+}

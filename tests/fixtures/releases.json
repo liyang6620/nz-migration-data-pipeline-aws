@@ -1,0 +1,20 @@
+{
+  "license": "Creative Commons Attribution 4.0 International",
+  "source": "Stats NZ",
+  "fixtures": [
+    {
+      "snapshot_month": "2025-10",
+      "release_id": "stats-nz-international-migration-2025-10",
+      "source_sha256": "051978fc08062905d0d6dd47bb7b8547b396ab6e4dcb8b735bd17d8a9396abf4",
+      "source_url": "https://www.stats.govt.nz/assets/Uploads/International-migration/International-migration-October-2025/Download-data/international-migration-october-2025-citizenship-by-visa-and-by-country-of-last-permanent-residence.csv",
+      "fixture": "source_snapshot_2025_10.csv"
+    },
+    {
+      "snapshot_month": "2025-11",
+      "release_id": "stats-nz-international-migration-2025-11",
+      "source_sha256": "976a8f3980ce033840fb7d02236fd72289072bd37fb06631e1f15adf49313ae0",
+      "source_url": "https://www.stats.govt.nz/assets/Uploads/International-migration/International-migration-November-2025/Download-data/international-migration-november-2025-citizenship-by-visa-and-by-country-of-last-permanent-residence.csv",
+      "fixture": "source_snapshot_2025_11.csv"
+    }
+  ]
+}

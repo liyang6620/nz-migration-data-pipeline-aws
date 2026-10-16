@@ -4,5 +4,15 @@ __pycache__/
 .venv/
 venv/
 .env
+.local/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+crash.log
 .DS_Store
 Thumbs.db

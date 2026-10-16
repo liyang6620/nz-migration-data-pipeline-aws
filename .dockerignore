@@ -1,0 +1,15 @@
+.git
+.github
+.local
+.pytest_cache
+.ruff_cache
+.terraform
+__pycache__
+*.pyc
+*.tfstate*
+tests
+docs
+infrastructure
+Stepfunction
+Glue
+Athena

@@ -1,0 +1,6 @@
+year_month,month_of_release,passenger_type,direction,citizenship,visa,country_of_residence,estimate,standard_error,status
+2024-10,2025-11,Long-term migrant,Arrivals,TOTAL,TOTAL,TOTAL,10454,31,Provisional
+2024-10,2025-11,Long-term migrant,Arrivals,TOTAL,Work,TOTAL,2722,10,Provisional
+2024-10,2025-11,Long-term migrant,Arrivals,TOTAL,TOTAL,India,1188,4,Provisional
+2024-10,2025-11,Long-term migrant,Arrivals,NZ,TOTAL,TOTAL,2052,11,Provisional
+2024-10,2025-11,Long-term migrant,Arrivals,non-NZ,Work,India,263,1,Provisional

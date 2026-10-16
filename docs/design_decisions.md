@@ -9,9 +9,12 @@ This document explains key technical decisions made in the design of the migrati
 Stats NZ migration releases may revise historical values.  
 To ensure reproducible reporting:
 
-- Data is partitioned by **snapshot_month**
-- The pipeline automatically resolves the **latest snapshot**
-- Historical reports remain reproducible
+- File-level `snapshot_month` is separate from the row-level
+  `month_of_release` lineage value.
+- Curated data is partitioned by `snapshot_month` and `year_month`.
+- Published consumers resolve the latest accepted snapshot through a manifest.
+- Historical snapshots are immutable and are never deleted by a new run.
+- Revision reports compare stable fact keys across adjacent snapshots.
 
 ---
 
@@ -19,9 +22,10 @@ To ensure reproducible reporting:
 
 The pipeline is designed to safely re-run:
 
-- Curated partitions are cleaned before write
-- No duplicate records are created
-- Deterministic output paths ensure consistent results
+- The source SHA-256 digest detects repeated or replaced releases.
+- A matching release ID and digest is a no-op.
+- Deterministic snapshot paths prevent duplicate records.
+- A conflicting digest is quarantined instead of overwriting history.
 
 ---
 
@@ -31,14 +35,16 @@ To reduce downstream maintenance:
 
 - Column names and types are standardised
 - Schema is enforced in curated layer
-- Controlled categorical values used where applicable
+- The executable contract and JSON Schema are versioned in the repository
+- Metric slices are derived deterministically from source cube dimensions
 
 ---
 
 ## Storage Optimisation
 
 - Parquet format used for columnar compression
-- Partitioned by `year_month` for efficient query pruning
+- Partitioned by `snapshot_month` and `year_month` for reproducibility and
+  query pruning
 - Reduces Athena scan cost
 
 ---
@@ -59,20 +65,24 @@ Ensures consistent reporting definitions across dashboards and analysts.
 
 Each run performs:
 
-- Schema validation
-- Non-null checks
-- Row-level validation
+- Exact source-header and schema validation
+- Null, numeric, domain, and temporal checks
+- Canonical business-key uniqueness checks
+- Metric-slice classification and total-slice presence checks
+- Full revision comparison with the preceding successful snapshot
 
-Results stored for traceability and debugging.
+Quality evidence and revision summaries are committed atomically with each
+snapshot. Rejected AWS transformations write a structured quarantine record.
 
 ---
 
 ## Serverless Architecture
 
-The pipeline uses fully serverless AWS components:
+The V2 pipeline uses fully serverless AWS components:
 
 - Amazon S3 – Storage
-- AWS Glue – ETL and schema discovery
+- AWS Lambda – Polars/PyArrow ingestion and transformation
+- AWS Glue Data Catalog – Athena schema with partition projection
 - AWS Step Functions – Orchestration
 - Amazon Athena – Query layer
 - EventBridge – Optional scheduling
@@ -81,4 +91,4 @@ This enables:
 
 - No infrastructure management
 - Pay-per-use cost model
-- Scalable execution
+- A US$3 project budget and bounded concurrency/query scans

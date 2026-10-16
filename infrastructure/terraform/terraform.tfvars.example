@@ -1,0 +1,18 @@
+aws_region      = "ap-southeast-2"
+project_name    = "nz-migration-v2"
+environment     = "demo"
+deploy_compute  = false
+schedule_enabled = false
+monthly_budget_usd = 3
+# alert_email = "you@example.com"
+
+# Set these only after pushing the container image to the ECR output.
+# deploy_compute      = true
+# container_image_uri = "941377158316.dkr.ecr.ap-southeast-2.amazonaws.com/nz-migration-v2@sha256:<digest>"
+# schedule_enabled = true
+# schedule_input = {
+#   source_url      = "https://www.stats.govt.nz/.../release.csv"
+#   release_id      = "stats-nz-international-migration-YYYY-MM"
+#   snapshot_month  = "YYYY-MM"
+#   expected_sha256 = "<64-character digest>"
+# }
