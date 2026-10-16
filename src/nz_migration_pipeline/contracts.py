@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from datetime import datetime
 from math import isfinite
-from typing import Mapping
-
 
 SCHEMA_VERSION = "1.0.0"
 TOTAL = "TOTAL"
@@ -99,7 +98,9 @@ def derive_metric_slice(record: Mapping[str, object]) -> str:
     dimensions = ("citizenship", "visa", "country_of_residence")
     missing = [field for field in dimensions if not str(record.get(field, "")).strip()]
     if missing:
-        raise ContractViolation(f"dimension values cannot be empty: {', '.join(missing)}")
+        raise ContractViolation(
+            f"dimension values cannot be empty: {', '.join(missing)}"
+        )
     active = tuple(field for field in dimensions if record[field] != TOTAL)
     return _SLICE_BY_ACTIVE_DIMENSIONS[active]
 
@@ -148,7 +149,9 @@ def canonicalize_source_row(
 def validate_canonical_record(record: Mapping[str, object]) -> None:
     missing = [field for field in CANONICAL_COLUMNS if field not in record]
     if missing:
-        raise ContractViolation(f"canonical record is missing fields: {', '.join(missing)}")
+        raise ContractViolation(
+            f"canonical record is missing fields: {', '.join(missing)}"
+        )
 
     for field in ("snapshot_month", "source_release_month", "year_month"):
         _require_month(str(record[field]), field)
@@ -177,7 +180,9 @@ def validate_canonical_record(record: Mapping[str, object]) -> None:
     if not SHA256_PATTERN.fullmatch(str(record["source_sha256"])):
         raise ContractViolation("source_sha256 must be a lowercase SHA-256 hex digest")
     try:
-        timestamp = datetime.fromisoformat(str(record["ingested_at"]).replace("Z", "+00:00"))
+        timestamp = datetime.fromisoformat(
+            str(record["ingested_at"]).replace("Z", "+00:00")
+        )
     except ValueError as exc:
         raise ContractViolation("ingested_at must be an ISO-8601 timestamp") from exc
     if timestamp.tzinfo is None:
@@ -185,7 +190,9 @@ def validate_canonical_record(record: Mapping[str, object]) -> None:
     if timestamp.utcoffset() is None or timestamp.utcoffset().total_seconds() != 0:
         raise ContractViolation("ingested_at must use UTC")
     if record["schema_version"] != SCHEMA_VERSION:
-        raise ContractViolation(f"unsupported schema_version: {record['schema_version']!r}")
+        raise ContractViolation(
+            f"unsupported schema_version: {record['schema_version']!r}"
+        )
 
 
 def record_key(record: Mapping[str, object]) -> tuple[object, ...]:

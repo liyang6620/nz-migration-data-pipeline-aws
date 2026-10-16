@@ -4,7 +4,6 @@ import sys
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
@@ -16,7 +15,6 @@ from nz_migration_pipeline.contracts import (  # noqa: E402
     canonicalize_source_row,
     record_key,
 )
-
 
 FIXTURES = ROOT / "tests" / "fixtures"
 INGESTED_AT = "2026-10-16T10:00:00Z"
@@ -43,9 +41,7 @@ def canonicalize(rows, snapshot_month, release_id, source_sha256):
 class DataContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.releases = json.loads((FIXTURES / "releases.json").read_text())[
-            "fixtures"
-        ]
+        cls.releases = json.loads((FIXTURES / "releases.json").read_text())["fixtures"]
 
     def test_real_source_fixtures_satisfy_contract(self):
         for release in self.releases:

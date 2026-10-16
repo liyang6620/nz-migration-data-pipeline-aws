@@ -12,11 +12,11 @@ from .local_pipeline import PipelineResult, run_local_pipeline
 
 __all__ = [
     "ContractViolation",
+    "PipelineResult",
     "canonicalize_source_row",
     "derive_metric_slice",
     "record_key",
     "revision_key",
-    "validate_canonical_record",
-    "PipelineResult",
     "run_local_pipeline",
+    "validate_canonical_record",
 ]

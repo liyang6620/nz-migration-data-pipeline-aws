@@ -7,7 +7,7 @@ import shutil
 import tempfile
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import polars as pl
@@ -45,7 +45,7 @@ class PipelineResult:
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _iso_z(timestamp: datetime) -> str:
@@ -118,16 +118,15 @@ def _recover_committed_snapshot(
     """Recover when data committed but process stopped before metadata commit."""
 
     output_path = (
-        root
-        / "curated"
-        / "migration_arrivals"
-        / f"snapshot_month={snapshot_month}"
+        root / "curated" / "migration_arrivals" / f"snapshot_month={snapshot_month}"
     )
     if not output_path.exists():
         return None
     marker_path = output_path / "_SUCCESS.json"
     if not marker_path.is_file():
-        raise ReleaseConflict(f"curated snapshot has no success marker: {snapshot_month}")
+        raise ReleaseConflict(
+            f"curated snapshot has no success marker: {snapshot_month}"
+        )
     marker = json.loads(marker_path.read_text(encoding="utf-8"))
     if marker.get("release_id") != release_id:
         raise ReleaseConflict(
@@ -192,7 +191,9 @@ def run_local_pipeline(
                 f"completion metadata exists without curated data: {release_id}"
             )
         if verified.run_id != completed.get("run_id"):
-            raise ReleaseConflict(f"completion metadata disagrees with data: {release_id}")
+            raise ReleaseConflict(
+                f"completion metadata disagrees with data: {release_id}"
+            )
         return verified
 
     started = now or _utc_now()
@@ -213,9 +214,7 @@ def run_local_pipeline(
     )
     if recovered:
         committed = json.loads(
-            (Path(recovered.output_path) / "_SUCCESS.json").read_text(
-                encoding="utf-8"
-            )
+            (Path(recovered.output_path) / "_SUCCESS.json").read_text(encoding="utf-8")
         )
         recovered_payload = {
             **asdict(recovered),
@@ -252,10 +251,7 @@ def run_local_pipeline(
             current_snapshot_month=snapshot_month,
         )
     output_path = (
-        root
-        / "curated"
-        / "migration_arrivals"
-        / f"snapshot_month={snapshot_month}"
+        root / "curated" / "migration_arrivals" / f"snapshot_month={snapshot_month}"
     )
     success_marker = {
         "release_id": release_id,

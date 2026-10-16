@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 from botocore.exceptions import ClientError
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:

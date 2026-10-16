@@ -8,7 +8,7 @@ import mimetypes
 import os
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +23,6 @@ from .quality import build_quality_report
 from .revisions import build_revision_summary, compare_snapshots, read_snapshot
 from .transform import transform_source
 
-
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
 S3: Any = None
@@ -37,9 +36,7 @@ def _s3_client() -> Any:
 
 
 def _iso_z() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace(
-        "+00:00", "Z"
-    )
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _required_event(event: dict[str, Any]) -> tuple[str, str, str]:
@@ -162,7 +159,9 @@ def _record_failure(
     context: Any,
     exc: Exception,
 ) -> None:
-    failure_id = f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:12]}"
+    failure_id = (
+        f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:12]}"
+    )
     payload = {
         "failure_id": failure_id,
         "failed_at": _iso_z(),
@@ -303,7 +302,7 @@ def _transform_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
         _put_json(bucket, f"metadata/releases/{release_id}.json", recovered)
         return {**completed, "status": "skipped"}
 
-    run_id = f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:12]}"
+    run_id = f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:12]}"
     with tempfile.TemporaryDirectory(dir="/tmp") as temporary:
         root = Path(temporary)
         raw_path = root / "source.csv"

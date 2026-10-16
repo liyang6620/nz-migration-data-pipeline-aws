@@ -8,17 +8,17 @@ from pathlib import Path
 
 import polars as pl
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from nz_migration_pipeline.ingest import ReleaseConflict  # noqa: E402
-from nz_migration_pipeline.ingest import acquire_source  # noqa: E402
-from nz_migration_pipeline.local_pipeline import run_local_pipeline  # noqa: E402
 from nz_migration_pipeline.contracts import ContractViolation  # noqa: E402
-
+from nz_migration_pipeline.ingest import (  # noqa: E402
+    ReleaseConflict,
+    acquire_source,
+)
+from nz_migration_pipeline.local_pipeline import run_local_pipeline  # noqa: E402
 
 FIXTURE = ROOT / "tests" / "fixtures" / "source_snapshot_2025_10.csv"
 NOVEMBER_FIXTURE = ROOT / "tests" / "fixtures" / "source_snapshot_2025_11.csv"
@@ -141,23 +141,16 @@ class LocalPipelineIntegrationTests(unittest.TestCase):
             )
 
             october = (
-                output
-                / "curated"
-                / "migration_arrivals"
-                / "snapshot_month=2025-10"
+                output / "curated" / "migration_arrivals" / "snapshot_month=2025-10"
             )
             november = october.parent / "snapshot_month=2025-11"
             quality = json.loads(
                 (november / "_QUALITY.json").read_text(encoding="utf-8")
             )
             summary = json.loads(
-                (november / "_revisions" / "summary.json").read_text(
-                    encoding="utf-8"
-                )
+                (november / "_revisions" / "summary.json").read_text(encoding="utf-8")
             )
-            revisions = pl.read_parquet(
-                november / "_revisions" / "part-00000.parquet"
-            )
+            revisions = pl.read_parquet(november / "_revisions" / "part-00000.parquet")
 
             self.assertEqual("passed", quality["quality_status"])
             self.assertEqual(5, quality["business_key_count"])

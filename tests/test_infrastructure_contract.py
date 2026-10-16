@@ -1,7 +1,6 @@
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 TERRAFORM = ROOT / "infrastructure" / "terraform"
 
@@ -28,12 +27,12 @@ class InfrastructureContractTests(unittest.TestCase):
 
     def test_storage_and_compute_guardrails_are_declared(self):
         required = (
-            'force_destroy = false',
+            "force_destroy = false",
             'status = "Enabled"',
             'sse_algorithm = "AES256"',
-            'reserved_concurrent_executions = 1',
-            'bytes_scanned_cutoff_per_query',
-            'default     = false',
+            "reserved_concurrent_executions = 1",
+            "bytes_scanned_cutoff_per_query",
+            "default     = false",
         )
         for guardrail in required:
             self.assertIn(guardrail, self.configuration)

@@ -7,7 +7,6 @@ from pathlib import Path
 
 import polars as pl
 
-
 REVISION_KEY = (
     "year_month",
     "passenger_type",
@@ -49,10 +48,7 @@ def compare_snapshots(previous: pl.DataFrame, current: pl.DataFrame) -> pl.DataF
 
     previous_values = previous.select(
         *REVISION_KEY,
-        *[
-            pl.col(column).alias(f"previous_{column}")
-            for column in COMPARE_COLUMNS
-        ],
+        *[pl.col(column).alias(f"previous_{column}") for column in COMPARE_COLUMNS],
     )
     current_values = current.select(
         *REVISION_KEY,
@@ -66,32 +62,26 @@ def compare_snapshots(previous: pl.DataFrame, current: pl.DataFrame) -> pl.DataF
     )
     changed = pl.any_horizontal(
         [
-            pl.col(f"previous_{column}").ne_missing(
-                pl.col(f"current_{column}")
-            )
+            pl.col(f"previous_{column}").ne_missing(pl.col(f"current_{column}"))
             for column in COMPARE_COLUMNS
         ]
     )
-    return (
-        joined.with_columns(
-            (pl.col("current_estimate") - pl.col("previous_estimate")).alias(
-                "estimate_delta"
-            ),
-            (
-                pl.col("current_standard_error")
-                - pl.col("previous_standard_error")
-            ).alias("standard_error_delta"),
-            pl.when(pl.col("previous_estimate").is_null())
-            .then(pl.lit("added"))
-            .when(pl.col("current_estimate").is_null())
-            .then(pl.lit("removed"))
-            .when(changed)
-            .then(pl.lit("revised"))
-            .otherwise(pl.lit("unchanged"))
-            .alias("change_type"),
-        )
-        .sort(REVISION_KEY)
-    )
+    return joined.with_columns(
+        (pl.col("current_estimate") - pl.col("previous_estimate")).alias(
+            "estimate_delta"
+        ),
+        (pl.col("current_standard_error") - pl.col("previous_standard_error")).alias(
+            "standard_error_delta"
+        ),
+        pl.when(pl.col("previous_estimate").is_null())
+        .then(pl.lit("added"))
+        .when(pl.col("current_estimate").is_null())
+        .then(pl.lit("removed"))
+        .when(changed)
+        .then(pl.lit("revised"))
+        .otherwise(pl.lit("unchanged"))
+        .alias("change_type"),
+    ).sort(REVISION_KEY)
 
 
 def build_revision_summary(

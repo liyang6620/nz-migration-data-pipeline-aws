@@ -6,7 +6,6 @@ import polars as pl
 
 from .contracts import CANONICAL_COLUMNS, SCHEMA_VERSION, ContractViolation
 
-
 DIMENSIONS = ("citizenship", "visa", "country_of_residence")
 BUSINESS_KEY = (
     "snapshot_month",

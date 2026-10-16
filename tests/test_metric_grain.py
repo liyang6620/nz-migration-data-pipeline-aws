@@ -4,7 +4,6 @@ import sys
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
@@ -15,7 +14,6 @@ from nz_migration_pipeline.contracts import (  # noqa: E402
     derive_metric_slice,
     revision_key,
 )
-
 
 FIXTURES = ROOT / "tests" / "fixtures"
 
@@ -68,11 +66,11 @@ class MetricGrainTests(unittest.TestCase):
         self.assertEqual(set(october), set(november))
 
         total_key = next(
-            key
-            for key, record in october.items()
-            if record["metric_slice"] == "total"
+            key for key, record in october.items() if record["metric_slice"] == "total"
         )
-        self.assertEqual(-146, november[total_key]["estimate"] - october[total_key]["estimate"])
+        self.assertEqual(
+            -146, november[total_key]["estimate"] - october[total_key]["estimate"]
+        )
         self.assertEqual("2025-10", october[total_key]["snapshot_month"])
         self.assertEqual("2025-11", november[total_key]["snapshot_month"])
 
