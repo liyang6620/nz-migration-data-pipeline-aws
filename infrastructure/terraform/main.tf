@@ -131,16 +131,16 @@ resource "aws_s3_bucket_policy" "pipeline" {
 resource "aws_s3_object" "glue_script" {
   bucket       = aws_s3_bucket.pipeline.id
   key          = local.glue_script_key
-  source       = "${path.module}/../../glue/jobs/process_migration.py"
-  etag         = filemd5("${path.module}/../../glue/jobs/process_migration.py")
+  source       = "${path.module}/../../Glue/jobs/process_migration.py"
+  etag         = filemd5("${path.module}/../../Glue/jobs/process_migration.py")
   content_type = "text/x-python"
 }
 
 resource "aws_s3_object" "glue_ruleset" {
   bucket       = aws_s3_bucket.pipeline.id
   key          = local.glue_ruleset_key
-  source       = "${path.module}/../../glue/rulesets/migration_arrivals.dqdl"
-  etag         = filemd5("${path.module}/../../glue/rulesets/migration_arrivals.dqdl")
+  source       = "${path.module}/../../Glue/rulesets/migration_arrivals.dqdl"
+  etag         = filemd5("${path.module}/../../Glue/rulesets/migration_arrivals.dqdl")
   content_type = "text/plain"
 }
 
