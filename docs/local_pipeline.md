@@ -1,8 +1,9 @@
 # Local pipeline
 
-The local runner executes the same ingestion boundary intended for the AWS
-implementation. It is useful for development, CI, and demonstrating the data
-model without creating cloud resources.
+The local runner is a fast Polars/PyArrow harness for the same source contract,
+canonical model, revision semantics, and publication invariants. Production
+AWS execution uses Glue 5.0 PySpark. The local path is useful for development,
+CI, and demonstrating the model without creating cloud resources.
 
 ## Install
 
@@ -70,6 +71,6 @@ reproducible while allowing time-filtered reads.
 
 ```bash
 python -m pytest -q
-python -m compileall -q src tests
-ruff check .
+python -m compileall -q src tests Glue/jobs
+ruff check src tests Glue/jobs
 ```

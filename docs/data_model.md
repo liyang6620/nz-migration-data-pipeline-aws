@@ -74,5 +74,6 @@ curated/migration_arrivals/
   snapshot_month=2025-11/year_month=2024-10/*.parquet
 ```
 
-Published consumers resolve a snapshot through a manifest. No curated history
-is deleted when a new release arrives.
+Published consumers join only snapshot months with a successful commit marker.
+Candidate or partial output is therefore invisible. No curated history is
+deleted when a new release arrives.

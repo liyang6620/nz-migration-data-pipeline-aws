@@ -1,6 +1,6 @@
 # ADR 002: Use Lambda containers instead of Glue Spark
 
-- Status: Accepted
+- Status: Superseded by ADR 004
 - Date: 2026-10-16
 
 ## Context

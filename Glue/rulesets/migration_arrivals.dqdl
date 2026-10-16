@@ -1,0 +1,23 @@
+Rules = [
+  RowCount > 0,
+  IsComplete "release_id",
+  IsComplete "snapshot_month",
+  IsComplete "year_month",
+  IsComplete "metric_slice",
+  IsComplete "estimate",
+  ColumnValues "estimate" >= 0,
+  ColumnValues "standard_error" >= 0,
+  ColumnValues "passenger_type" = "Long-term migrant",
+  ColumnValues "direction" = "Arrivals",
+  ColumnValues "status" in ["Final", "Provisional"],
+  ColumnValues "metric_slice" in [
+    "total",
+    "citizenship",
+    "visa",
+    "country_of_residence",
+    "citizenship_visa",
+    "citizenship_country_of_residence",
+    "visa_country_of_residence",
+    "citizenship_visa_country_of_residence"
+  ]
+]

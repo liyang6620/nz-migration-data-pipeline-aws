@@ -12,7 +12,7 @@ To ensure reproducible reporting:
 - File-level `snapshot_month` is separate from the row-level
   `month_of_release` lineage value.
 - Curated data is partitioned by `snapshot_month` and `year_month`.
-- Published consumers resolve the latest accepted snapshot through a manifest.
+- Published consumers resolve only snapshots with a successful commit marker.
 - Historical snapshots are immutable and are never deleted by a new run.
 - Revision reports compare stable fact keys across adjacent snapshots.
 
@@ -23,7 +23,9 @@ To ensure reproducible reporting:
 The pipeline is designed to safely re-run:
 
 - The source SHA-256 digest detects repeated or replaced releases.
-- A matching release ID and digest is a no-op.
+- S3 bucket, object key, and version ID form the AWS idempotency key.
+- Successful and active deliveries are no-ops; failed or quarantined versions
+  can be replayed without deleting their registry record.
 - Deterministic snapshot paths prevent duplicate records.
 - A conflicting digest is quarantined instead of overwriting history.
 
@@ -76,19 +78,22 @@ snapshot. Rejected AWS transformations write a structured quarantine record.
 
 ---
 
-## Serverless Architecture
+## Event-driven AWS architecture
 
-The V2 pipeline uses fully serverless AWS components:
+The runtime uses AWS-managed, request-driven components:
 
-- Amazon S3 – Storage
-- AWS Lambda – Polars/PyArrow ingestion and transformation
-- AWS Glue Data Catalog – Athena schema with partition projection
-- AWS Step Functions – Orchestration
-- Amazon Athena – Query layer
-- EventBridge – Optional scheduling
+- Amazon S3 for landing, immutable raw, staged, curated, quality, revision,
+  quarantine, commit, and audit objects
+- EventBridge, SQS FIFO, and EventBridge Pipes for filtered durable delivery
+- Step Functions Standard for orchestration and publication state
+- DynamoDB for idempotency, run state, and a dataset publication lock
+- AWS Glue 5.0 PySpark and Glue Data Quality for distributed ETL
+- Glue Data Catalog and Lake Formation for schema and governed access
+- Athena for post-write validation and stable Gold views
+- CloudWatch, SNS, and AWS Budgets for operational and cost visibility
 
 This enables:
 
-- No infrastructure management
-- Pay-per-use cost model
-- A US$3 project budget and bounded concurrency/query scans
+- no source polling or always-on compute;
+- pay-per-use processing only after a contracted upload;
+- a US$3 budget alert plus bounded workers, runtime, concurrency, and scans.

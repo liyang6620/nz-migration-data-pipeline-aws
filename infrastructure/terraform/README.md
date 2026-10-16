@@ -1,32 +1,83 @@
 # Terraform deployment
 
-This stack replaces the legacy Glue Spark job with a low-volume serverless
-design: S3, two image-based Lambda functions, Step Functions, Glue Data Catalog,
-Athena, and an optional EventBridge Scheduler trigger.
+This stack deploys the complete upload-driven AWS runtime in ap-southeast-2:
+S3, EventBridge, SQS FIFO and DLQ, EventBridge Pipes, Step Functions Standard,
+DynamoDB, Glue 5.0, Glue Data Quality assets, Glue Catalog, Lake Formation,
+Athena Gold views, CloudWatch, SNS, and an AWS Budget.
 
-No NAT Gateway, VPC, EC2, ECS, Redshift, QuickSight, Glue Spark, or always-on
-compute is created. `deploy_compute` and `schedule_enabled` both default to
-`false` so an initial plan cannot start recurring workloads.
+It does not create a NAT Gateway, VPC, EC2, ECS, Redshift, QuickSight, MWAA,
+Lambda, ECR, schedule, or always-on service.
 
-Setting `alert_email` creates Lambda and Step Functions failure alarms plus a
-project-tagged monthly AWS Budget. The email subscription must be confirmed.
-For tag-filtered budget data to appear, activate the `Project` cost allocation
-tag once in the Billing console. The default budget is US$3 per month.
+## Safety boundary
 
-## Deployment sequence
+- The S3 bucket has force_destroy disabled.
+- S3 versioning, managed encryption, public-access blocking, and TLS-only
+  access are enabled.
+- Glue is capped at two G.1X workers by default, one concurrent run, and a
+  15-minute timeout.
+- Athena rejects any query that scans more than 1 GB.
+- Logs retain 14 days by default.
+- The US$3 budget is always created. Email notifications are created only when
+  alert_email is set and the subscription is confirmed.
+- The budget is an alert and cannot guarantee a hard spending limit.
 
-1. Authenticate the AWS CLI to the intended personal account and verify the
-   account ID with `aws sts get-caller-identity`.
-2. Run `terraform init`, `terraform plan`, and `terraform apply` with the default
-   `deploy_compute = false`. This creates storage, ECR, catalog, and Athena.
-3. Build and push the repository's Lambda container image to the
-   `ecr_repository_url` output.
-4. Resolve the pushed image digest and set `container_image_uri` using the
-   immutable `repository@sha256:...` form.
-5. Set `deploy_compute = true`, review a second plan, and apply.
-6. Keep `schedule_enabled = false` until a manual Step Functions execution has
-   processed and queried a real release successfully.
+## Review and deploy
 
-Terraform intentionally does not configure a remote state backend for this
-single-maintainer portfolio deployment. The local state file contains resource
-identifiers and must never be committed.
+Use an authenticated CLI for the intended personal account:
+
+~~~bash
+aws sts get-caller-identity
+terraform init
+terraform fmt -check -recursive
+terraform validate
+terraform plan -out=tfplan
+terraform show tfplan
+terraform apply tfplan
+~~~
+
+Do not apply if the caller account is not the intended account or if the plan
+contains an unexpected bucket replacement or data deletion.
+
+The repository intentionally does not configure a remote state backend for
+this single-maintainer demo. Terraform state can contain resource identifiers
+and must never be committed.
+
+## Variables
+
+| Variable | Default | Purpose |
+|---|---:|---|
+| aws_region | ap-southeast-2 | Region for the complete runtime |
+| project_name | nz-migration-v2 | Resource and cost-tag prefix |
+| environment | demo | Deployment environment tag |
+| glue_worker_type | G.1X | Bounded Spark worker class |
+| glue_number_of_workers | 2 | Minimum bounded Glue capacity |
+| glue_timeout_minutes | 15 | Hard per-run timeout |
+| log_retention_days | 14 | CloudWatch retention |
+| monthly_budget_usd | 3 | Project-tagged monthly budget alert |
+| alert_email | null | Optional SNS and Budget subscriber |
+| enable_lake_formation | true | Register the lake and grant Gold access |
+
+Copy terraform.tfvars.example to an ignored terraform.tfvars only when an
+override is required. Do not commit email addresses, credentials, or state.
+
+## First release
+
+After apply, upload the oldest release first:
+
+~~~bash
+aws s3 cp source.csv \
+  s3://BUCKET/landing/dataset=migration/snapshot_month=2025-10/release_id=stats-nz-2025-10/source.csv
+~~~
+
+Wait for SUCCEEDED before uploading the next month. Validate:
+
+~~~sql
+SELECT * FROM nz_migration_v2_gold.vw_release_history
+ORDER BY snapshot_month;
+
+SELECT * FROM nz_migration_v2_gold.vw_pipeline_quality
+ORDER BY snapshot_month;
+~~~
+
+Use the operations runbook for replay, DLQ recovery, quarantine, stale locks,
+backfill, and cost incidents.

@@ -16,64 +16,42 @@ variable "environment" {
   default     = "demo"
 }
 
-variable "deploy_compute" {
-  description = "Create Lambda and Step Functions after a container image is pushed."
-  type        = bool
-  default     = false
+variable "glue_worker_type" {
+  description = "Smallest production Spark worker class suitable for this workload."
+  type        = string
+  default     = "G.1X"
 }
 
-variable "container_image_uri" {
-  description = "Immutable ECR image URI including its sha256 digest."
-  type        = string
-  default     = null
-  nullable    = true
+variable "glue_number_of_workers" {
+  description = "Glue Spark workers. Glue requires at least two G.1X workers."
+  type        = number
+  default     = 2
 
   validation {
-    condition = (
-      !var.deploy_compute ||
-      (var.container_image_uri != null && can(regex("@sha256:[0-9a-f]{64}$", var.container_image_uri)))
-    )
-    error_message = "When deploy_compute is true, container_image_uri must end in @sha256:<64 lowercase hex characters>."
+    condition     = var.glue_number_of_workers >= 2 && var.glue_number_of_workers <= 5
+    error_message = "glue_number_of_workers must stay between 2 and 5."
   }
 }
 
-variable "schedule_enabled" {
-  description = "Enable the monthly EventBridge Scheduler trigger."
-  type        = bool
-  default     = false
-}
-
-variable "schedule_expression" {
-  description = "EventBridge Scheduler expression used only when schedule_enabled is true."
-  type        = string
-  default     = "cron(0 9 20 * ? *)"
-}
-
-variable "schedule_input" {
-  description = "Explicit release payload for a scheduled execution."
-  type = object({
-    source_url      = string
-    release_id      = string
-    snapshot_month  = string
-    expected_sha256 = optional(string)
-  })
-  default  = null
-  nullable = true
+variable "glue_timeout_minutes" {
+  description = "Hard runtime ceiling for one uploaded release."
+  type        = number
+  default     = 15
 
   validation {
-    condition     = !var.schedule_enabled || var.schedule_input != null
-    error_message = "schedule_input is required when schedule_enabled is true."
+    condition     = var.glue_timeout_minutes >= 5 && var.glue_timeout_minutes <= 30
+    error_message = "glue_timeout_minutes must stay between 5 and 30."
   }
 }
 
 variable "log_retention_days" {
-  description = "CloudWatch log retention for Lambda and Step Functions."
+  description = "CloudWatch retention for orchestration and Glue logs."
   type        = number
-  default     = 30
+  default     = 14
 }
 
 variable "alert_email" {
-  description = "Optional email for pipeline alarms and the project cost budget."
+  description = "Optional email endpoint for failure and cost notifications."
   type        = string
   default     = null
   nullable    = true
@@ -93,7 +71,13 @@ variable "monthly_budget_usd" {
   default     = 3
 
   validation {
-    condition     = var.monthly_budget_usd > 0
-    error_message = "monthly_budget_usd must be greater than zero."
+    condition     = var.monthly_budget_usd > 0 && var.monthly_budget_usd <= 3
+    error_message = "monthly_budget_usd must be greater than zero and no more than three."
   }
+}
+
+variable "enable_lake_formation" {
+  description = "Register the lake and apply catalog grants to consumer roles."
+  type        = bool
+  default     = true
 }

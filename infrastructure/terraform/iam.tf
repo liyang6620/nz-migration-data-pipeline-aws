@@ -1,138 +1,78 @@
-data "aws_iam_policy_document" "lambda_assume_role" {
+data "aws_iam_policy_document" "glue_assume_role" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRole"]
 
     principals {
       type        = "Service"
-      identifiers = ["lambda.amazonaws.com"]
+      identifiers = ["glue.amazonaws.com"]
     }
   }
 }
 
-resource "aws_iam_role" "ingest" {
-  name               = "${var.project_name}-ingest"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+resource "aws_iam_role" "glue" {
+  name               = "${var.project_name}-glue-etl"
+  assume_role_policy = data.aws_iam_policy_document.glue_assume_role.json
 }
 
-resource "aws_iam_role" "transform" {
-  name               = "${var.project_name}-transform"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
-}
-
-data "aws_iam_policy_document" "ingest" {
+data "aws_iam_policy_document" "glue" {
   statement {
-    sid       = "ListPipelineBucket"
+    sid       = "ListDataLake"
     effect    = "Allow"
-    actions   = ["s3:ListBucket"]
+    actions   = ["s3:ListBucket", "s3:GetBucketLocation"]
     resources = [aws_s3_bucket.pipeline.arn]
-    condition {
-      test     = "StringLike"
-      variable = "s3:prefix"
-      values   = ["raw/*"]
-    }
   }
 
   statement {
-    sid    = "WriteImmutableRawRelease"
-    effect = "Allow"
-    actions = [
-      "s3:GetObject",
-      "s3:PutObject",
-    ]
-    resources = ["${aws_s3_bucket.pipeline.arn}/raw/*"]
-  }
-
-  statement {
-    sid       = "WriteIngestQuarantine"
-    effect    = "Allow"
-    actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.pipeline.arn}/quarantine/ingest/*"]
-  }
-
-  statement {
-    sid    = "WriteIngestLogs"
-    effect = "Allow"
-    actions = [
-      "logs:CreateLogStream",
-      "logs:PutLogEvents",
-    ]
-    resources = ["${aws_cloudwatch_log_group.ingest.arn}:*"]
-  }
-}
-
-resource "aws_iam_role_policy" "ingest" {
-  name   = "pipeline-access"
-  role   = aws_iam_role.ingest.id
-  policy = data.aws_iam_policy_document.ingest.json
-}
-
-data "aws_iam_policy_document" "transform" {
-  statement {
-    sid       = "ListPipelineData"
-    effect    = "Allow"
-    actions   = ["s3:ListBucket"]
-    resources = [aws_s3_bucket.pipeline.arn]
-    condition {
-      test     = "StringLike"
-      variable = "s3:prefix"
-      values = [
-        "raw/*",
-        "curated/*",
-        "metadata/*",
-        "quarantine/*",
-        "staging/*",
-      ]
-    }
-  }
-
-  statement {
-    sid    = "ReadRawAndCuratedData"
-    effect = "Allow"
-    actions = [
-      "s3:GetObject",
-      "s3:GetObjectVersion",
-    ]
-    resources = [
-      "${aws_s3_bucket.pipeline.arn}/raw/*",
-      "${aws_s3_bucket.pipeline.arn}/curated/*",
-      "${aws_s3_bucket.pipeline.arn}/metadata/*",
-      "${aws_s3_bucket.pipeline.arn}/staging/*",
-    ]
-  }
-
-  statement {
-    sid    = "PublishPipelineOutputs"
+    sid    = "ReadAndPublishPipelineObjects"
     effect = "Allow"
     actions = [
       "s3:AbortMultipartUpload",
+      "s3:DeleteObject",
+      "s3:GetObject",
+      "s3:GetObjectVersion",
       "s3:ListMultipartUploadParts",
       "s3:PutObject",
-      "s3:DeleteObject",
     ]
-    resources = [
-      "${aws_s3_bucket.pipeline.arn}/curated/*",
-      "${aws_s3_bucket.pipeline.arn}/metadata/*",
-      "${aws_s3_bucket.pipeline.arn}/quarantine/*",
-      "${aws_s3_bucket.pipeline.arn}/staging/*",
-    ]
+    resources = ["${aws_s3_bucket.pipeline.arn}/*"]
   }
 
   statement {
-    sid    = "WriteTransformLogs"
+    sid    = "UseCatalogAndDataQuality"
     effect = "Allow"
     actions = [
+      "glue:GetDatabase",
+      "glue:GetDatabases",
+      "glue:GetTable",
+      "glue:GetTables",
+      "glue:GetPartitions",
+      "lakeformation:GetDataAccess",
+      "glue:BatchGetPartition",
+      "glue:BatchCreatePartition",
+      "glue:CreatePartition",
+      "glue:UpdatePartition",
+      "glue:DeletePartition",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "PublishGlueMetrics"
+    effect = "Allow"
+    actions = [
+      "cloudwatch:PutMetricData",
+      "logs:CreateLogGroup",
       "logs:CreateLogStream",
       "logs:PutLogEvents",
     ]
-    resources = ["${aws_cloudwatch_log_group.transform.arn}:*"]
+    resources = ["*"]
   }
 }
 
-resource "aws_iam_role_policy" "transform" {
-  name   = "pipeline-access"
-  role   = aws_iam_role.transform.id
-  policy = data.aws_iam_policy_document.transform.json
+resource "aws_iam_role_policy" "glue" {
+  name   = "pipeline-data-access"
+  role   = aws_iam_role.glue.id
+  policy = data.aws_iam_policy_document.glue.json
 }
 
 data "aws_iam_policy_document" "states_assume_role" {
@@ -153,14 +93,95 @@ resource "aws_iam_role" "states" {
 }
 
 data "aws_iam_policy_document" "states" {
-  dynamic "statement" {
-    for_each = var.deploy_compute ? [1] : []
-    content {
-      sid       = "InvokePipelineFunctions"
-      effect    = "Allow"
-      actions   = ["lambda:InvokeFunction"]
-      resources = [aws_lambda_function.ingest[0].arn, aws_lambda_function.transform[0].arn]
-    }
+  statement {
+    sid    = "RunGlueJob"
+    effect = "Allow"
+    actions = [
+      "glue:BatchStopJobRun",
+      "glue:GetJobRun",
+      "glue:GetJobRuns",
+      "glue:StartJobRun",
+    ]
+    resources = [aws_glue_job.pipeline.arn]
+  }
+
+  statement {
+    sid    = "ManageRunRegistry"
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:DeleteItem",
+    ]
+    resources = [aws_dynamodb_table.pipeline_runs.arn]
+  }
+
+  statement {
+    sid    = "ValidateWithAthena"
+    effect = "Allow"
+    actions = [
+      "athena:GetQueryExecution",
+      "athena:GetQueryResults",
+      "athena:StartQueryExecution",
+      "athena:StopQueryExecution",
+    ]
+    resources = [aws_athena_workgroup.pipeline.arn]
+  }
+
+  statement {
+    sid    = "ReadCatalog"
+    effect = "Allow"
+    actions = [
+      "glue:GetDatabase",
+      "glue:GetDatabases",
+      "glue:GetTable",
+      "glue:GetTables",
+      "glue:GetPartitions",
+      "lakeformation:GetDataAccess",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "ReadAndCommitPipelineObjects"
+    effect = "Allow"
+    actions = [
+      "s3:GetBucketLocation",
+      "s3:GetObject",
+      "s3:ListBucket",
+      "s3:PutObject",
+    ]
+    resources = [
+      aws_s3_bucket.pipeline.arn,
+      "${aws_s3_bucket.pipeline.arn}/${local.athena_result_prefix}*",
+      "${aws_s3_bucket.pipeline.arn}/curated/*",
+      "${aws_s3_bucket.pipeline.arn}/quality/*",
+      "${aws_s3_bucket.pipeline.arn}/metadata/commits/*",
+      "${aws_s3_bucket.pipeline.arn}/audit/runs/*",
+      "${aws_s3_bucket.pipeline.arn}/quarantine/*",
+    ]
+  }
+
+  statement {
+    sid    = "ManageServiceIntegrationRules"
+    effect = "Allow"
+    actions = [
+      "events:DescribeRule",
+      "events:PutRule",
+      "events:PutTargets",
+      "events:RemoveTargets",
+    ]
+    resources = [
+      "arn:${data.aws_partition.current.partition}:events:${var.aws_region}:${data.aws_caller_identity.current.account_id}:rule/StepFunctionsGetEventsForGlueJobsRule"
+    ]
+  }
+
+  statement {
+    sid       = "PublishFailureNotification"
+    effect    = "Allow"
+    actions   = ["sns:Publish"]
+    resources = [aws_sns_topic.alerts.arn]
   }
 
   statement {
@@ -186,37 +207,146 @@ resource "aws_iam_role_policy" "states" {
   policy = data.aws_iam_policy_document.states.json
 }
 
-data "aws_iam_policy_document" "scheduler_assume_role" {
+data "aws_iam_policy_document" "pipes_assume_role" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRole"]
 
     principals {
       type        = "Service"
-      identifiers = ["scheduler.amazonaws.com"]
+      identifiers = ["pipes.amazonaws.com"]
     }
   }
 }
 
-resource "aws_iam_role" "scheduler" {
-  name               = "${var.project_name}-scheduler"
-  assume_role_policy = data.aws_iam_policy_document.scheduler_assume_role.json
+resource "aws_iam_role" "pipes" {
+  name               = "${var.project_name}-event-pipe"
+  assume_role_policy = data.aws_iam_policy_document.pipes_assume_role.json
 }
 
-data "aws_iam_policy_document" "scheduler" {
-  count = var.deploy_compute ? 1 : 0
+data "aws_iam_policy_document" "pipes" {
+  statement {
+    sid    = "ConsumeUploadEvents"
+    effect = "Allow"
+    actions = [
+      "sqs:DeleteMessage",
+      "sqs:ChangeMessageVisibility",
+      "sqs:GetQueueAttributes",
+      "sqs:ReceiveMessage",
+    ]
+    resources = [aws_sqs_queue.uploads.arn]
+  }
 
   statement {
+    sid       = "StartPipeline"
     effect    = "Allow"
     actions   = ["states:StartExecution"]
-    resources = [aws_sfn_state_machine.pipeline[0].arn]
+    resources = [aws_sfn_state_machine.pipeline.arn]
   }
 }
 
-resource "aws_iam_role_policy" "scheduler" {
-  count = var.deploy_compute ? 1 : 0
+resource "aws_iam_role_policy" "pipes" {
+  name   = "consume-and-start"
+  role   = aws_iam_role.pipes.id
+  policy = data.aws_iam_policy_document.pipes.json
+}
 
-  name   = "start-pipeline"
-  role   = aws_iam_role.scheduler.id
-  policy = data.aws_iam_policy_document.scheduler[0].json
+data "aws_iam_policy_document" "consumer_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+}
+
+resource "aws_iam_role" "analyst" {
+  name               = "${var.project_name}-analyst"
+  assume_role_policy = data.aws_iam_policy_document.consumer_assume_role.json
+}
+
+resource "aws_iam_role" "bi" {
+  name               = "${var.project_name}-bi-readonly"
+  assume_role_policy = data.aws_iam_policy_document.consumer_assume_role.json
+}
+
+data "aws_iam_policy_document" "consumer" {
+  statement {
+    sid    = "QueryGoldViews"
+    effect = "Allow"
+    actions = [
+      "athena:GetQueryExecution",
+      "athena:GetQueryResults",
+      "athena:StartQueryExecution",
+      "athena:StopQueryExecution",
+    ]
+    resources = [aws_athena_workgroup.pipeline.arn]
+  }
+
+  statement {
+    sid    = "ReadCatalogAndLakeFormation"
+    effect = "Allow"
+    actions = [
+      "glue:GetDatabase",
+      "glue:GetDatabases",
+      "glue:GetTable",
+      "glue:GetTables",
+      "glue:GetPartitions",
+      "lakeformation:GetDataAccess",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "ListApprovedDataPrefixes"
+    effect = "Allow"
+    actions = [
+      "s3:GetBucketLocation",
+      "s3:ListBucket",
+    ]
+    resources = [aws_s3_bucket.pipeline.arn]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values = [
+        "curated/*",
+        "revisions/*",
+        "quality/*",
+        "metadata/commits/*",
+        "${local.athena_result_prefix}*",
+      ]
+    }
+  }
+
+  statement {
+    sid    = "ReadApprovedDataAndUseQueryResults"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+    ]
+    resources = [
+      "${aws_s3_bucket.pipeline.arn}/curated/*",
+      "${aws_s3_bucket.pipeline.arn}/revisions/*",
+      "${aws_s3_bucket.pipeline.arn}/quality/*",
+      "${aws_s3_bucket.pipeline.arn}/metadata/commits/*",
+      "${aws_s3_bucket.pipeline.arn}/${local.athena_result_prefix}*",
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "analyst" {
+  name   = "gold-query-access"
+  role   = aws_iam_role.analyst.id
+  policy = data.aws_iam_policy_document.consumer.json
+}
+
+resource "aws_iam_role_policy" "bi" {
+  name   = "gold-query-access"
+  role   = aws_iam_role.bi.id
+  policy = data.aws_iam_policy_document.consumer.json
 }

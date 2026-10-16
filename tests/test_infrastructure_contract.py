@@ -17,7 +17,9 @@ class InfrastructureContractTests(unittest.TestCase):
             'resource "aws_nat_gateway"',
             'resource "aws_instance"',
             'resource "aws_ecs_service"',
-            'resource "aws_glue_job"',
+            'resource "aws_lambda_function"',
+            'resource "aws_ecr_repository"',
+            'resource "aws_scheduler_schedule"',
             'resource "aws_mwaa_environment"',
             'resource "aws_quicksight_',
             'resource "aws_redshift_',
@@ -30,12 +32,51 @@ class InfrastructureContractTests(unittest.TestCase):
             "force_destroy = false",
             'status = "Enabled"',
             'sse_algorithm = "AES256"',
-            "reserved_concurrent_executions = 1",
+            "max_concurrent_runs = 1",
+            "number_of_workers = var.glue_number_of_workers",
+            "timeout           = var.glue_timeout_minutes",
             "bytes_scanned_cutoff_per_query",
-            "default     = false",
+            "content_based_deduplication = true",
+            "deadLetterTargetArn",
+            "point_in_time_recovery",
         )
         for guardrail in required:
             self.assertIn(guardrail, self.configuration)
+
+    def test_uploads_drive_an_aws_native_control_plane(self):
+        required = (
+            'resource "aws_s3_bucket_notification"',
+            'resource "aws_cloudwatch_event_rule" "landing_upload"',
+            'resource "aws_sqs_queue" "uploads"',
+            'resource "aws_pipes_pipe" "uploads"',
+            'resource "aws_sfn_state_machine" "pipeline"',
+            'resource "aws_glue_job" "pipeline"',
+            'resource "aws_dynamodb_table" "pipeline_runs"',
+        )
+        for resource in required:
+            self.assertIn(resource, self.configuration)
+
+    def test_gold_views_only_expose_committed_snapshots(self):
+        self.assertGreaterEqual(self.configuration.count("VIRTUAL_VIEW"), 1)
+        self.assertIn("release_commits", self.configuration)
+        self.assertIn("commits.status = 'SUCCEEDED'", self.configuration)
+        for view in (
+            "vw_latest_monthly_arrivals",
+            "vw_total_arrivals",
+            "vw_arrivals_by_citizenship",
+            "vw_arrivals_by_visa",
+            "vw_revision_summary",
+            "vw_release_history",
+            "vw_pipeline_quality",
+        ):
+            self.assertIn(view, self.configuration)
+
+    def test_failed_runs_are_replayable_without_reprocessing_successes(self):
+        orchestration = (TERRAFORM / "orchestration.tf").read_text(encoding="utf-8")
+        self.assertIn("ReadExistingRun", orchestration)
+        self.assertIn("ReopenRun", orchestration)
+        self.assertIn('StringEquals = "FAILED"', orchestration)
+        self.assertIn('StringEquals = "QUARANTINED"', orchestration)
 
     def test_budget_defaults_to_three_us_dollars(self):
         variables = (TERRAFORM / "variables.tf").read_text(encoding="utf-8")

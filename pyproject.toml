@@ -5,11 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nz-migration-data-pipeline"
 version = "0.2.0"
-description = "Revision-aware local and AWS pipeline for Stats NZ migration releases"
+description = "Revision-aware AWS data product for Stats NZ migration releases"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-  "boto3>=1.35,<2",
   "polars>=1.20,<2",
   "pyarrow>=23.0.1,<24",
 ]
