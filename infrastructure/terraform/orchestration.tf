@@ -534,7 +534,7 @@ resource "aws_sfn_state_machine" "pipeline" {
         Type     = "Task"
         Resource = "arn:${data.aws_partition.current.partition}:states:::sns:publish"
         Parameters = {
-          TopicArn    = aws_sns_topic.alerts.arn
+          TopicArn    = local.alerts_topic_arn
           Subject     = "NZ migration pipeline failure"
           "Message.$" = "States.Format('Run {} for release {} failed. Inspect Step Functions execution {}.', $.run_id, $.release_id, $.execution_arn)"
         }

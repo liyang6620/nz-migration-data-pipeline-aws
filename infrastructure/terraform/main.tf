@@ -6,6 +6,7 @@ locals {
   glue_ruleset_key     = "artifacts/glue/migration_arrivals.dqdl"
   landing_prefix       = "landing/dataset=migration/"
   athena_result_prefix = "metadata/athena-results/"
+  alerts_topic_arn     = "arn:${data.aws_partition.current.partition}:sns:${var.aws_region}:${data.aws_caller_identity.current.account_id}:${var.project_name}-alerts"
 }
 
 resource "aws_s3_bucket" "pipeline" {
