@@ -78,6 +78,11 @@ class InfrastructureContractTests(unittest.TestCase):
         self.assertIn('StringEquals = "FAILED"', orchestration)
         self.assertIn('StringEquals = "QUARANTINED"', orchestration)
 
+    def test_hyphenated_event_fields_use_reference_path_brackets(self):
+        orchestration = (TERRAFORM / "orchestration.tf").read_text(encoding="utf-8")
+        self.assertIn("$.detail.object['version-id']", orchestration)
+        self.assertNotIn("$.detail.object.version-id", orchestration)
+
     def test_budget_defaults_to_three_us_dollars(self):
         variables = (TERRAFORM / "variables.tf").read_text(encoding="utf-8")
         budget = variables.split('variable "monthly_budget_usd"', 1)[1]

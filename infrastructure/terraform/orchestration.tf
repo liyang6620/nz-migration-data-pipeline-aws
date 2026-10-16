@@ -119,11 +119,11 @@ resource "aws_sfn_state_machine" "pipeline" {
         Parameters = {
           "bucket.$"          = "$.detail.bucket.name"
           "object_key.$"      = "$.detail.object.key"
-          "version_id.$"      = "$.detail.object.version-id"
+          "version_id.$"      = "$.detail.object['version-id']"
           "event_time.$"      = "$.time"
           "execution_arn.$"   = "$$.Execution.Id"
           "run_id.$"          = "$$.Execution.Name"
-          "idempotency_key.$" = "States.Format('{}#{}#{}', $.detail.bucket.name, $.detail.object.key, $.detail.object.version-id)"
+          "idempotency_key.$" = "States.Format('{}#{}#{}', $.detail.bucket.name, $.detail.object.key, $.detail.object['version-id'])"
         }
         Next = "ValidateUploadContract"
       }
