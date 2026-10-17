@@ -94,7 +94,9 @@ class InfrastructureContractTests(unittest.TestCase):
             'resource "aws_lakeformation_data_lake_settings" "pipeline"',
             governance,
         )
-        self.assertIn('principal   = "IAM_ALLOWED_PRINCIPALS"', governance)
+        self.assertNotIn("create_database_default_permissions", governance)
+        self.assertNotIn("create_table_default_permissions", governance)
+        self.assertNotIn('principal   = "IAM_ALLOWED_PRINCIPALS"', governance)
         self.assertIn(
             "depends_on = [aws_lakeformation_data_lake_settings.pipeline]",
             governance,

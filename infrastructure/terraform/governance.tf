@@ -10,16 +10,8 @@ resource "aws_lakeformation_data_lake_settings" "pipeline" {
 
   admins = [local.lake_formation_admin_principal_arn]
 
-  # Preserve Glue/IAM compatibility while explicit grants are introduced.
-  create_database_default_permissions {
-    principal   = "IAM_ALLOWED_PRINCIPALS"
-    permissions = ["ALL"]
-  }
-
-  create_table_default_permissions {
-    principal   = "IAM_ALLOWED_PRINCIPALS"
-    permissions = ["ALL"]
-  }
+  # Omitting both default-permission blocks enforces Lake Formation grants
+  # instead of the legacy IAM_ALLOWED_PRINCIPALS compatibility mode.
 }
 
 resource "aws_lakeformation_resource" "pipeline" {

@@ -148,11 +148,15 @@ resource "aws_s3_object" "glue_ruleset" {
 resource "aws_glue_catalog_database" "migration" {
   name        = local.catalog_database
   description = "Silver data contracts for immutable NZ migration snapshots"
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline]
 }
 
 resource "aws_glue_catalog_database" "gold" {
   name        = local.gold_database
   description = "Stable consumer-facing semantic views"
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline]
 }
 
 resource "aws_glue_catalog_table" "migration_arrivals" {
@@ -218,6 +222,8 @@ resource "aws_glue_catalog_table" "migration_arrivals" {
       }
     }
   }
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline]
 }
 
 resource "aws_glue_catalog_table" "release_commits" {
@@ -275,6 +281,8 @@ resource "aws_glue_catalog_table" "release_commits" {
       serialization_library = "org.openx.data.jsonserde.JsonSerDe"
     }
   }
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline]
 }
 
 resource "aws_glue_catalog_table" "pipeline_quality" {
@@ -322,6 +330,8 @@ resource "aws_glue_catalog_table" "pipeline_quality" {
       serialization_library = "org.openx.data.jsonserde.JsonSerDe"
     }
   }
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline]
 }
 
 resource "aws_glue_catalog_table" "migration_revisions" {
@@ -385,6 +395,8 @@ resource "aws_glue_catalog_table" "migration_revisions" {
       }
     }
   }
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline]
 }
 
 resource "aws_athena_workgroup" "pipeline" {

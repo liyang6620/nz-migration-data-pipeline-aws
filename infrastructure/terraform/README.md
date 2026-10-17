@@ -68,6 +68,13 @@ is registered for that bootstrap. For ongoing operations, deploy through a
 dedicated IAM role and set this variable to that role's ARN; do not keep using
 the account root identity.
 
+The stack deliberately clears the legacy `IAM_ALLOWED_PRINCIPALS` defaults;
+mixing that compatibility mode with explicit Lake Formation grants produces
+over-broad effective permissions and perpetual Terraform drift. If the databases
+or tables existed before this setting was managed, revoke their existing
+`IAM_ALLOWED_PRINCIPALS` `ALL` grants once before the next apply. The operations
+runbook contains the migration and verification commands.
+
 ## First release
 
 After apply, upload the oldest release first:

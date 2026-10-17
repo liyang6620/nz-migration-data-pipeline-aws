@@ -73,6 +73,48 @@ The current contract permits one committed release per snapshot month.
 Replacing a committed month is a governed breaking operation and is not an
 ordinary replay.
 
+## Migrate an existing catalog to Lake Formation grants
+
+Do this once only when the catalog databases or tables were created while the
+account still used `IAM_ALLOWED_PRINCIPALS`. First review the effective legacy
+grants:
+
+~~~bash
+aws lakeformation list-permissions \
+  --principal DataLakePrincipalIdentifier=IAM_ALLOWED_PRINCIPALS \
+  --region ap-southeast-2
+~~~
+
+After confirming the result contains only this project's two databases and
+their tables, revoke `ALL` from each database and each current table. Replace
+`ACCOUNT_ID` only after checking `aws sts get-caller-identity`:
+
+~~~bash
+ACCOUNT_ID=ACCOUNT_ID
+for database in nz_migration_v2 nz_migration_v2_gold; do
+  aws lakeformation revoke-permissions \
+    --principal DataLakePrincipalIdentifier=IAM_ALLOWED_PRINCIPALS \
+    --resource "{\"Database\":{\"CatalogId\":\"$ACCOUNT_ID\",\"Name\":\"$database\"}}" \
+    --permissions ALL \
+    --region ap-southeast-2
+
+  aws glue get-tables \
+    --database-name "$database" \
+    --region ap-southeast-2 \
+    --query 'TableList[].Name' \
+    --output text | tr '\t' '\n' | while read -r table; do
+      aws lakeformation revoke-permissions \
+        --principal DataLakePrincipalIdentifier=IAM_ALLOWED_PRINCIPALS \
+        --resource "{\"Table\":{\"CatalogId\":\"$ACCOUNT_ID\",\"DatabaseName\":\"$database\",\"Name\":\"$table\"}}" \
+        --permissions ALL \
+        --region ap-southeast-2
+    done
+done
+~~~
+
+Run `terraform plan` immediately afterward. The expected result is `No
+changes`; do not proceed with releases while a permission replacement remains.
+
 ## Rollback
 
 Terraform rollback reverts infrastructure only; it does not delete the data
