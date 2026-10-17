@@ -1,6 +1,10 @@
 locals {
+  fact_projection = join(", ", [
+    for column in local.fact_columns : "facts.${column.name}"
+  ])
+
   committed_facts_sql = <<-SQL
-    SELECT facts.*
+    SELECT ${local.fact_projection}
     FROM ${local.catalog_database}.migration_arrivals AS facts
     INNER JOIN ${local.catalog_database}.release_commits AS commits
       ON facts.snapshot_month = commits.snapshot_month
