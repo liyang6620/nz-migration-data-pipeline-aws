@@ -122,7 +122,7 @@ resource "aws_sfn_state_machine" "pipeline" {
       ParseUploadMessage = {
         Type = "Pass"
         Parameters = {
-          "event.$" = "States.StringToJson($[0].body)"
+          "event.$" = "$[0].event"
         }
         Next = "NormaliseUpload"
       }
@@ -593,7 +593,7 @@ resource "aws_pipes_pipe" "uploads" {
   }
 
   target_parameters {
-    input_template = "<aws.pipes.event.json>"
+    input_template = "{\"event\": <$.body>}"
 
     step_function_state_machine_parameters {
       invocation_type = "FIRE_AND_FORGET"

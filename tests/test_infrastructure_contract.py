@@ -65,8 +65,8 @@ class InfrastructureContractTests(unittest.TestCase):
     def test_state_machine_parses_the_native_sqs_batch_contract(self):
         orchestration = (TERRAFORM / "orchestration.tf").read_text(encoding="utf-8")
         self.assertIn('StartAt = "ParseUploadMessage"', orchestration)
-        self.assertIn('"event.$" = "States.StringToJson($[0].body)"', orchestration)
-        self.assertIn('input_template = "<aws.pipes.event.json>"', orchestration)
+        self.assertIn('"event.$" = "$[0].event"', orchestration)
+        self.assertIn('input_template = "{\\"event\\": <$.body>}"', orchestration)
         self.assertNotIn('input_template = "<$.body>"', orchestration)
 
     def test_gold_views_only_expose_committed_snapshots(self):
