@@ -66,6 +66,7 @@ class InfrastructureContractTests(unittest.TestCase):
         orchestration = (TERRAFORM / "orchestration.tf").read_text(encoding="utf-8")
         self.assertIn('StartAt = "ParseUploadMessage"', orchestration)
         self.assertIn('"event.$" = "States.StringToJson($[0].body)"', orchestration)
+        self.assertIn('input_template = "<aws.pipes.event.json>"', orchestration)
         self.assertNotIn('input_template = "<$.body>"', orchestration)
 
     def test_gold_views_only_expose_committed_snapshots(self):

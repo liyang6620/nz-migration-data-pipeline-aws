@@ -593,6 +593,8 @@ resource "aws_pipes_pipe" "uploads" {
   }
 
   target_parameters {
+    input_template = "<aws.pipes.event.json>"
+
     step_function_state_machine_parameters {
       invocation_type = "FIRE_AND_FORGET"
     }
