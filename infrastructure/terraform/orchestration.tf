@@ -3,6 +3,11 @@ resource "aws_cloudwatch_log_group" "states" {
   retention_in_days = var.log_retention_days
 }
 
+resource "aws_cloudwatch_log_group" "pipes" {
+  name              = "/aws/vendedlogs/pipes/${var.project_name}"
+  retention_in_days = var.log_retention_days
+}
+
 resource "aws_sqs_queue" "uploads_dlq" {
   name                      = "${var.project_name}-uploads-dlq.fifo"
   fifo_queue                = true
@@ -564,6 +569,15 @@ resource "aws_pipes_pipe" "uploads" {
   target        = aws_sfn_state_machine.pipeline.arn
   desired_state = "RUNNING"
 
+  log_configuration {
+    include_execution_data = ["ALL"]
+    level                  = "ERROR"
+
+    cloudwatch_logs_log_destination {
+      log_group_arn = aws_cloudwatch_log_group.pipes.arn
+    }
+  }
+
   source_parameters {
     sqs_queue_parameters {
       batch_size                         = 1
@@ -578,4 +592,6 @@ resource "aws_pipes_pipe" "uploads" {
       invocation_type = "FIRE_AND_FORGET"
     }
   }
+
+  depends_on = [aws_iam_role_policy.pipes]
 }

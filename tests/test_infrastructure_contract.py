@@ -56,6 +56,12 @@ class InfrastructureContractTests(unittest.TestCase):
         for resource in required:
             self.assertIn(resource, self.configuration)
 
+    def test_pipe_target_failures_are_logged(self):
+        orchestration = (TERRAFORM / "orchestration.tf").read_text(encoding="utf-8")
+        self.assertIn('resource "aws_cloudwatch_log_group" "pipes"', orchestration)
+        self.assertIn('level                  = "ERROR"', orchestration)
+        self.assertIn('include_execution_data = ["ALL"]', orchestration)
+
     def test_gold_views_only_expose_committed_snapshots(self):
         self.assertGreaterEqual(self.configuration.count("VIRTUAL_VIEW"), 1)
         self.assertIn("release_commits", self.configuration)
