@@ -117,18 +117,25 @@ resource "aws_sfn_state_machine" "pipeline" {
 
   definition = jsonencode({
     Comment = "Validate, transform, quality-gate, and commit one migration release"
-    StartAt = "NormaliseUpload"
+    StartAt = "ParseUploadMessage"
     States = {
+      ParseUploadMessage = {
+        Type = "Pass"
+        Parameters = {
+          "event.$" = "States.StringToJson($[0].body)"
+        }
+        Next = "NormaliseUpload"
+      }
       NormaliseUpload = {
         Type = "Pass"
         Parameters = {
-          "bucket.$"          = "$.detail.bucket.name"
-          "object_key.$"      = "$.detail.object.key"
-          "version_id.$"      = "$.detail.object['version-id']"
-          "event_time.$"      = "$.time"
+          "bucket.$"          = "$.event.detail.bucket.name"
+          "object_key.$"      = "$.event.detail.object.key"
+          "version_id.$"      = "$.event.detail.object['version-id']"
+          "event_time.$"      = "$.event.time"
           "execution_arn.$"   = "$$.Execution.Id"
           "run_id.$"          = "$$.Execution.Name"
-          "idempotency_key.$" = "States.Format('{}#{}#{}', $.detail.bucket.name, $.detail.object.key, $.detail.object['version-id'])"
+          "idempotency_key.$" = "States.Format('{}#{}#{}', $.event.detail.bucket.name, $.event.detail.object.key, $.event.detail.object['version-id'])"
         }
         Next = "ValidateUploadContract"
       }
@@ -586,8 +593,6 @@ resource "aws_pipes_pipe" "uploads" {
   }
 
   target_parameters {
-    input_template = "<$.body>"
-
     step_function_state_machine_parameters {
       invocation_type = "FIRE_AND_FORGET"
     }

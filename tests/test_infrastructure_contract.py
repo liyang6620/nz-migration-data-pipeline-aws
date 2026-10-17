@@ -62,6 +62,12 @@ class InfrastructureContractTests(unittest.TestCase):
         self.assertIn('level                  = "ERROR"', orchestration)
         self.assertIn('include_execution_data = ["ALL"]', orchestration)
 
+    def test_state_machine_parses_the_native_sqs_batch_contract(self):
+        orchestration = (TERRAFORM / "orchestration.tf").read_text(encoding="utf-8")
+        self.assertIn('StartAt = "ParseUploadMessage"', orchestration)
+        self.assertIn('"event.$" = "States.StringToJson($[0].body)"', orchestration)
+        self.assertNotIn('input_template = "<$.body>"', orchestration)
+
     def test_gold_views_only_expose_committed_snapshots(self):
         self.assertGreaterEqual(self.configuration.count("VIRTUAL_VIEW"), 1)
         self.assertIn("release_commits", self.configuration)
@@ -86,8 +92,8 @@ class InfrastructureContractTests(unittest.TestCase):
 
     def test_hyphenated_event_fields_use_reference_path_brackets(self):
         orchestration = (TERRAFORM / "orchestration.tf").read_text(encoding="utf-8")
-        self.assertIn("$.detail.object['version-id']", orchestration)
-        self.assertNotIn("$.detail.object.version-id", orchestration)
+        self.assertIn("$.event.detail.object['version-id']", orchestration)
+        self.assertNotIn("$.event.detail.object.version-id", orchestration)
 
     def test_budget_defaults_to_three_us_dollars(self):
         variables = (TERRAFORM / "variables.tf").read_text(encoding="utf-8")
