@@ -76,18 +76,36 @@ ordinary replay.
 ## Migrate an existing catalog to Lake Formation grants
 
 Do this once only when the catalog databases or tables were created while the
-account still used `IAM_ALLOWED_PRINCIPALS`. First review the effective legacy
-grants:
+account still used `IAM_ALLOWED_PRINCIPALS`. First preserve the existing data
+lake settings while clearing only the two legacy defaults:
 
 ~~~bash
-aws lakeformation list-permissions \
-  --principal DataLakePrincipalIdentifier=IAM_ALLOWED_PRINCIPALS \
-  --region ap-southeast-2
+settings="$(AWS_PAGER='' aws lakeformation get-data-lake-settings \
+  --region ap-southeast-2 \
+  --query DataLakeSettings \
+  --output json)"
+updated_settings="$(jq \
+  '.CreateDatabaseDefaultPermissions=[] | .CreateTableDefaultPermissions=[]' \
+  <<<"$settings")"
+aws lakeformation put-data-lake-settings \
+  --region ap-southeast-2 \
+  --data-lake-settings "$updated_settings"
 ~~~
 
-After confirming the result contains only this project's two databases and
-their tables, revoke `ALL` from each database and each current table. Replace
-`ACCOUNT_ID` only after checking `aws sts get-caller-identity`:
+Then review the effective legacy grants:
+
+~~~bash
+AWS_PAGER='' aws lakeformation list-permissions \
+  --region ap-southeast-2 \
+  --output json | jq -c \
+  '.PrincipalResourcePermissions[]
+   | select(.Principal.DataLakePrincipalIdentifier == "IAM_ALLOWED_PRINCIPALS")
+   | {Resource,Permissions}'
+~~~
+
+After confirming the result contains only this project's two databases and 11
+current tables/views, revoke `ALL` from each. Replace `ACCOUNT_ID` only after
+checking `aws sts get-caller-identity`:
 
 ~~~bash
 ACCOUNT_ID=ACCOUNT_ID
