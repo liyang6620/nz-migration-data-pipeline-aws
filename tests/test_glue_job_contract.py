@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -71,6 +72,12 @@ class GlueJobContractTests(unittest.TestCase):
         prefix = source.split("def main()", 1)[0]
         self.assertNotIn("import awsglue", prefix)
         self.assertNotIn("import pyspark", prefix)
+
+    def test_athena_quality_record_is_one_json_object_per_line(self):
+        payload = {"quality_status": "passed", "row_count": 357098}
+        encoded = self.job._json_record_bytes(payload)
+        self.assertEqual(1, encoded.count(b"\n"))
+        self.assertEqual(payload, json.loads(encoded))
 
     def test_commit_and_quality_paths_support_cross_release_queries(self):
         source = JOB_PATH.read_text(encoding="utf-8")

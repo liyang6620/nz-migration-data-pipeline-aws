@@ -80,6 +80,10 @@ def _json_bytes(payload: dict[str, object]) -> bytes:
     return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
 
 
+def _json_record_bytes(payload: dict[str, object]) -> bytes:
+    return (json.dumps(payload, separators=(",", ":"), sort_keys=True) + "\n").encode()
+
+
 def _validate_source_header(source_path: Path) -> None:
     with source_path.open(newline="", encoding="utf-8-sig") as handle:
         header = next(csv.reader(handle), None)
@@ -522,7 +526,7 @@ def main() -> None:
     s3.put_object(
         Bucket=args["DATA_BUCKET"],
         Key=quality_key,
-        Body=_json_bytes(quality),
+        Body=_json_record_bytes(quality),
         ContentType="application/json",
     )
     manifest = {
