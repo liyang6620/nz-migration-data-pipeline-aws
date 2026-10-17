@@ -43,6 +43,10 @@ class InfrastructureContractTests(unittest.TestCase):
         for guardrail in required:
             self.assertIn(guardrail, self.configuration)
 
+    def test_glue_can_publish_data_quality_results(self):
+        iam = (TERRAFORM / "iam.tf").read_text(encoding="utf-8")
+        self.assertIn('"glue:PublishDataQuality"', iam)
+
     def test_uploads_drive_an_aws_native_control_plane(self):
         required = (
             'resource "aws_s3_bucket_notification"',

@@ -46,6 +46,7 @@ data "aws_iam_policy_document" "glue" {
       "glue:GetTable",
       "glue:GetTables",
       "glue:GetPartitions",
+      "glue:PublishDataQuality",
       "lakeformation:GetDataAccess",
       "glue:BatchGetPartition",
       "glue:BatchCreatePartition",
