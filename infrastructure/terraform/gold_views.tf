@@ -178,6 +178,17 @@ resource "aws_glue_catalog_table" "gold_views" {
     presto_view = "true"
   }
 
+  storage_descriptor {
+    dynamic "columns" {
+      for_each = each.value.columns
+
+      content {
+        name = columns.value.name
+        type = columns.value.type
+      }
+    }
+  }
+
   view_original_text = format("/* Presto View: %s */", base64encode(jsonencode({
     originalSql  = trimspace(each.value.sql)
     catalog      = "awsdatacatalog"
