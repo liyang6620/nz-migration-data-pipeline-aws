@@ -56,9 +56,17 @@ and must never be committed.
 | monthly_budget_usd | 3 | Project-tagged monthly budget alert |
 | alert_email | null | Optional SNS and Budget subscriber |
 | enable_lake_formation | true | Register the lake and grant Gold access |
+| lake_formation_admin_principal_arn | null | Dedicated IAM role/user that administers Lake Formation; the Terraform caller is used only as the bootstrap default |
 
 Copy terraform.tfvars.example to an ignored terraform.tfvars only when an
 override is required. Do not commit email addresses, credentials, or state.
+
+On the first deployment, Terraform must initialize the account's Lake Formation
+administrator before it can issue catalog and data-location grants. When
+`lake_formation_admin_principal_arn` is unset, the authenticated Terraform caller
+is registered for that bootstrap. For ongoing operations, deploy through a
+dedicated IAM role and set this variable to that role's ARN; do not keep using
+the account root identity.
 
 ## First release
 

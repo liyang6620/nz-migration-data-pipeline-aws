@@ -88,6 +88,18 @@ class InfrastructureContractTests(unittest.TestCase):
         budget = variables.split('variable "monthly_budget_usd"', 1)[1]
         self.assertIn("default     = 3", budget)
 
+    def test_lake_formation_is_bootstrapped_before_grants(self):
+        governance = (TERRAFORM / "governance.tf").read_text(encoding="utf-8")
+        self.assertIn(
+            'resource "aws_lakeformation_data_lake_settings" "pipeline"',
+            governance,
+        )
+        self.assertIn('principal   = "IAM_ALLOWED_PRINCIPALS"', governance)
+        self.assertIn(
+            "depends_on = [aws_lakeformation_data_lake_settings.pipeline]",
+            governance,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

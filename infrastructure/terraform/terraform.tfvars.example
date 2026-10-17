@@ -8,5 +8,8 @@ log_retention_days     = 14
 monthly_budget_usd     = 3
 enable_lake_formation  = true
 
+# Set to the dedicated Terraform/Lake Formation administration role after bootstrap.
+# lake_formation_admin_principal_arn = "arn:aws:iam::123456789012:role/data-platform-deployer"
+
 # Set only when an email subscription is wanted. AWS sends a confirmation link.
 # alert_email = "data-platform-alerts@example.com"

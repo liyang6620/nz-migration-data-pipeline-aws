@@ -1,8 +1,34 @@
+locals {
+  lake_formation_admin_principal_arn = coalesce(
+    var.lake_formation_admin_principal_arn,
+    data.aws_caller_identity.current.arn,
+  )
+}
+
+resource "aws_lakeformation_data_lake_settings" "pipeline" {
+  count = var.enable_lake_formation ? 1 : 0
+
+  admins = [local.lake_formation_admin_principal_arn]
+
+  # Preserve Glue/IAM compatibility while explicit grants are introduced.
+  create_database_default_permissions {
+    principal   = "IAM_ALLOWED_PRINCIPALS"
+    permissions = ["ALL"]
+  }
+
+  create_table_default_permissions {
+    principal   = "IAM_ALLOWED_PRINCIPALS"
+    permissions = ["ALL"]
+  }
+}
+
 resource "aws_lakeformation_resource" "pipeline" {
   count = var.enable_lake_formation ? 1 : 0
 
   arn                     = aws_s3_bucket.pipeline.arn
   use_service_linked_role = true
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline]
 }
 
 resource "aws_lakeformation_permissions" "glue_data_location" {
@@ -14,6 +40,8 @@ resource "aws_lakeformation_permissions" "glue_data_location" {
   data_location {
     arn = aws_lakeformation_resource.pipeline[0].arn
   }
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline]
 }
 
 resource "aws_lakeformation_permissions" "consumer_database" {
@@ -28,6 +56,8 @@ resource "aws_lakeformation_permissions" "consumer_database" {
   database {
     name = aws_glue_catalog_database.gold.name
   }
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline]
 }
 
 resource "aws_lakeformation_permissions" "orchestrator_database" {
@@ -39,6 +69,8 @@ resource "aws_lakeformation_permissions" "orchestrator_database" {
   database {
     name = aws_glue_catalog_database.migration.name
   }
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline]
 }
 
 resource "aws_lakeformation_permissions" "orchestrator_tables" {
@@ -54,6 +86,8 @@ resource "aws_lakeformation_permissions" "orchestrator_tables" {
     database_name = aws_glue_catalog_database.migration.name
     name          = each.value
   }
+
+  depends_on = [aws_lakeformation_data_lake_settings.pipeline]
 }
 
 resource "aws_lakeformation_permissions" "consumer_views" {
@@ -70,5 +104,8 @@ resource "aws_lakeformation_permissions" "consumer_views" {
     wildcard      = true
   }
 
-  depends_on = [aws_glue_catalog_table.gold_views]
+  depends_on = [
+    aws_glue_catalog_table.gold_views,
+    aws_lakeformation_data_lake_settings.pipeline,
+  ]
 }

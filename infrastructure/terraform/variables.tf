@@ -81,3 +81,18 @@ variable "enable_lake_formation" {
   type        = bool
   default     = true
 }
+
+variable "lake_formation_admin_principal_arn" {
+  description = "IAM role or user ARN that administers Lake Formation. Defaults to the identity running Terraform for first-time bootstrap; set this to a dedicated deployment role for ongoing operations."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition = (
+      var.lake_formation_admin_principal_arn == null ||
+      can(regex("^arn:[^:]+:iam::[0-9]{12}:(role|user)/.+$", var.lake_formation_admin_principal_arn))
+    )
+    error_message = "lake_formation_admin_principal_arn must be null or an IAM role/user ARN."
+  }
+}
