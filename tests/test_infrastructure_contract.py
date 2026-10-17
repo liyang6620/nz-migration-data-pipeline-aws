@@ -88,6 +88,13 @@ class InfrastructureContractTests(unittest.TestCase):
         ):
             self.assertIn(view, self.configuration)
 
+    def test_commit_markers_are_atomically_promoted_after_quality_gates(self):
+        orchestration = (TERRAFORM / "orchestration.tf").read_text(encoding="utf-8")
+        self.assertIn("aws-sdk:s3:copyObject", orchestration)
+        self.assertIn("staging/commit-candidates/run_id={}.json", orchestration)
+        self.assertIn("aws-sdk:s3:deleteObject", orchestration)
+        self.assertNotIn('"Body.$"    = "States.JsonToString($.commit)"', orchestration)
+
     def test_failed_runs_are_replayable_without_reprocessing_successes(self):
         orchestration = (TERRAFORM / "orchestration.tf").read_text(encoding="utf-8")
         self.assertIn("ReadExistingRun", orchestration)

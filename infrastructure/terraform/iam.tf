@@ -152,12 +152,14 @@ data "aws_iam_policy_document" "states" {
       "s3:GetObject",
       "s3:ListBucket",
       "s3:PutObject",
+      "s3:DeleteObject",
     ]
     resources = [
       aws_s3_bucket.pipeline.arn,
       "${aws_s3_bucket.pipeline.arn}/${local.athena_result_prefix}*",
       "${aws_s3_bucket.pipeline.arn}/curated/*",
       "${aws_s3_bucket.pipeline.arn}/quality/*",
+      "${aws_s3_bucket.pipeline.arn}/staging/commit-candidates/*",
       "${aws_s3_bucket.pipeline.arn}/metadata/commits/*",
       "${aws_s3_bucket.pipeline.arn}/audit/runs/*",
       "${aws_s3_bucket.pipeline.arn}/quarantine/*",

@@ -553,6 +553,21 @@ def main() -> None:
         Body=_json_bytes(manifest),
         ContentType="application/json",
     )
+    commit_candidate = {
+        "committed_at": ingested_at,
+        "release_id": release_id,
+        "row_count": row_count,
+        "run_id": args["RUN_ID"],
+        "snapshot_month": snapshot_month,
+        "source_sha256": source_sha256,
+        "status": "SUCCEEDED",
+    }
+    s3.put_object(
+        Bucket=args["DATA_BUCKET"],
+        Key=f"staging/commit-candidates/run_id={args['RUN_ID']}.json",
+        Body=_json_record_bytes(commit_candidate),
+        ContentType="application/json",
+    )
     _delete_prefix(s3, args["DATA_BUCKET"], run_prefix)
     job.commit()
 

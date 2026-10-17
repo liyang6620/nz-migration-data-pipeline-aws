@@ -88,6 +88,7 @@ class GlueJobContractTests(unittest.TestCase):
         self.assertNotIn(
             'quality/snapshot_month={snapshot_month}/release_id=', source
         )
+        self.assertIn('staging/commit-candidates/run_id=', source)
 
     def test_uncommitted_partial_output_is_recoverable(self):
         source = JOB_PATH.read_text(encoding="utf-8")

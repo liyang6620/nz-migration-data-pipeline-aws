@@ -391,28 +391,15 @@ resource "aws_sfn_state_machine" "pipeline" {
           ResultPath  = "$.error"
           Next        = "MarkFailed"
         }]
-        Next = "BuildCommitMarker"
-      }
-      BuildCommitMarker = {
-        Type = "Pass"
-        Parameters = {
-          "release_id.$"     = "$.release_id"
-          "run_id.$"         = "$.run_id"
-          "snapshot_month.$" = "$.snapshot_month"
-          status             = "SUCCEEDED"
-          "committed_at.$"   = "$$.State.EnteredTime"
-        }
-        ResultPath = "$.commit"
-        Next       = "PublishCommitMarker"
+        Next = "PublishCommitMarker"
       }
       PublishCommitMarker = {
         Type     = "Task"
-        Resource = "arn:${data.aws_partition.current.partition}:states:::aws-sdk:s3:putObject"
+        Resource = "arn:${data.aws_partition.current.partition}:states:::aws-sdk:s3:copyObject"
         Parameters = {
-          Bucket      = aws_s3_bucket.pipeline.id
-          "Key.$"     = "States.Format('metadata/commits/snapshot_month={}/success.json', $.snapshot_month)"
-          "Body.$"    = "States.JsonToString($.commit)"
-          ContentType = "application/json"
+          Bucket         = aws_s3_bucket.pipeline.id
+          "CopySource.$" = "States.Format('{}/staging/commit-candidates/run_id={}.json', $.bucket, $.run_id)"
+          "Key.$"        = "States.Format('metadata/commits/snapshot_month={}/success.json', $.snapshot_month)"
         }
         ResultPath = null
         Catch = [{
@@ -441,12 +428,21 @@ resource "aws_sfn_state_machine" "pipeline" {
       }
       WriteSuccessAudit = {
         Type     = "Task"
-        Resource = "arn:${data.aws_partition.current.partition}:states:::aws-sdk:s3:putObject"
+        Resource = "arn:${data.aws_partition.current.partition}:states:::aws-sdk:s3:copyObject"
         Parameters = {
-          Bucket      = aws_s3_bucket.pipeline.id
-          "Key.$"     = "States.Format('audit/runs/{}.json', $.run_id)"
-          "Body.$"    = "States.JsonToString($.commit)"
-          ContentType = "application/json"
+          Bucket         = aws_s3_bucket.pipeline.id
+          "CopySource.$" = "States.Format('{}/staging/commit-candidates/run_id={}.json', $.bucket, $.run_id)"
+          "Key.$"        = "States.Format('audit/runs/{}.json', $.run_id)"
+        }
+        ResultPath = null
+        Next       = "DeleteCommitCandidate"
+      }
+      DeleteCommitCandidate = {
+        Type     = "Task"
+        Resource = "arn:${data.aws_partition.current.partition}:states:::aws-sdk:s3:deleteObject"
+        Parameters = {
+          Bucket  = aws_s3_bucket.pipeline.id
+          "Key.$" = "States.Format('staging/commit-candidates/run_id={}.json', $.run_id)"
         }
         ResultPath = null
         Next       = "ReleaseLockAfterSuccess"
