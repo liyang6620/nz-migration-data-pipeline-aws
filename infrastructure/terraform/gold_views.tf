@@ -184,7 +184,7 @@ resource "aws_glue_catalog_table" "gold_views" {
 
       content {
         name = columns.value.name
-        type = columns.value.type
+        type = columns.value.type == "varchar" ? "string" : columns.value.type
       }
     }
   }
