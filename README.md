@@ -58,6 +58,20 @@ landing/dataset=migration/
   source.csv
 ~~~
 
+## Deployed validation
+
+![Sanitised production validation summary](docs/assets/production-validation.png)
+
+The live `ap-southeast-2` deployment has processed and committed two complete
+official releases. Both pipeline-quality records passed, the latest Gold view
+contains **358,233** November facts, the latest Glue run completed in **196
+seconds**, and a post-deployment Terraform plan reported **zero drift**.
+
+The image is a sanitised summary of reproducible AWS results, not a Console
+screenshot. Exact checks, operational identifiers, queries, and the evidence
+boundary are recorded in [AWS deployment evidence](docs/deployment_evidence.md).
+For a concise walkthrough, use the [five-minute interview demo](docs/interview_demo.md).
+
 ## Engineering guarantees
 
 - S3 version ID is part of the idempotency key, so duplicate delivery is safe.
@@ -170,6 +184,10 @@ terraform -chdir=infrastructure/terraform validate
 The local Polars/PyArrow path is a fast contract and revision test harness. AWS
 production execution uses Glue 5.0 PySpark.
 
+GitHub Actions runs these repository checks on pushes and pull requests. It
+does not ingest, orchestrate, transform, or publish production data; the runtime
+path remains entirely inside AWS.
+
 ## AWS deployment
 
 Terraform must be run against the intended personal account and region. The
@@ -219,7 +237,7 @@ MWAA resource is created.
 | **contracts/** | Machine-readable canonical schema |
 | **tests/** | Data, runtime, infrastructure, and asset contracts |
 | **docs/adr/** | Architecture decisions and superseded alternatives |
-| **docs/** | Data profile, model, compatibility policy, and runbook |
+| **docs/** | Data model, deployment evidence, demo guide, policies, and runbook |
 
 ## Scope and attribution
 

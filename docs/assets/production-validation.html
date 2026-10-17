@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NZ Migration Data Product - Production Validation</title>
+  <style>
+    :root {
+      --ink: #18212b;
+      --muted: #5c6773;
+      --line: #d9dee3;
+      --surface: #f5f7f8;
+      --orange: #ff9900;
+      --teal: #087f8c;
+      --green: #1f7a4c;
+      --blue: #2457a7;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 1600px;
+      height: 900px;
+      margin: 0;
+      overflow: hidden;
+      background: #ffffff;
+      color: var(--ink);
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+
+    body { border-top: 12px solid var(--orange); }
+
+    main {
+      height: 888px;
+      padding: 48px 64px 40px;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr auto;
+      gap: 28px;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 43px;
+      line-height: 1.08;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin-top: 10px;
+      font-size: 20px;
+      color: var(--muted);
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--green);
+      font-size: 20px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      align-items: stretch;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .stage {
+      min-height: 88px;
+      padding: 18px 16px;
+      background: var(--surface);
+      border-right: 1px solid var(--line);
+      position: relative;
+    }
+
+    .stage:last-child { border-right: 0; }
+    .stage strong { display: block; font-size: 17px; }
+    .stage span { display: block; margin-top: 6px; color: var(--muted); font-size: 14px; }
+    .stage::after {
+      content: ">";
+      position: absolute;
+      right: -7px;
+      top: 31px;
+      z-index: 2;
+      width: 14px;
+      height: 24px;
+      color: var(--orange);
+      background: #ffffff;
+      font-size: 20px;
+      font-weight: 700;
+      text-align: center;
+    }
+    .stage:last-child::after { display: none; }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .metric {
+      padding: 22px 22px 20px;
+      border-right: 1px solid var(--line);
+    }
+
+    .metric:last-child { border-right: 0; }
+    .metric .label { color: var(--muted); font-size: 15px; font-weight: 600; }
+    .metric .value { margin-top: 8px; font-size: 31px; font-weight: 750; }
+    .metric .detail { margin-top: 5px; color: var(--muted); font-size: 14px; }
+    .metric .value.green { color: var(--green); }
+    .metric .value.teal { color: var(--teal); }
+    .metric .value.blue { color: var(--blue); }
+
+    .evidence {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 42px;
+      min-height: 0;
+    }
+
+    .panel h2 {
+      margin: 0 0 18px;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    .release {
+      display: grid;
+      grid-template-columns: 110px 1fr 120px;
+      gap: 18px;
+      align-items: center;
+      min-height: 66px;
+      border-top: 1px solid var(--line);
+    }
+
+    .release:last-child { border-bottom: 1px solid var(--line); }
+    .month { font-size: 19px; font-weight: 700; }
+    .rows { color: var(--muted); font-size: 16px; }
+    .passed { color: var(--green); font-size: 15px; font-weight: 700; text-align: right; }
+
+    .revisions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+    }
+
+    .revision {
+      min-height: 76px;
+      padding: 16px 18px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .revision .name { color: var(--muted); font-size: 14px; }
+    .revision .number { margin-top: 5px; font-size: 24px; font-weight: 700; }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    footer strong { color: var(--ink); }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>NZ Migration Data Product</h1>
+        <div class="subtitle">Sanitised production validation summary | AWS ap-southeast-2</div>
+      </div>
+      <div class="status"><span class="status-dot"></span>DEPLOYED AND VERIFIED</div>
+    </header>
+
+    <section class="pipeline" aria-label="AWS pipeline stages">
+      <div class="stage"><strong>S3 landing</strong><span>Versioned upload</span></div>
+      <div class="stage"><strong>SQS FIFO</strong><span>Durable delivery</span></div>
+      <div class="stage"><strong>Step Functions</strong><span>Idempotent workflow</span></div>
+      <div class="stage"><strong>Glue 5.0</strong><span>PySpark ETL + DQ</span></div>
+      <div class="stage"><strong>Athena</strong><span>Post-write validation</span></div>
+      <div class="stage"><strong>Commit protocol</strong><span>Atomic publication</span></div>
+      <div class="stage"><strong>Gold views</strong><span>Governed access</span></div>
+    </section>
+
+    <section class="metrics" aria-label="Production metrics">
+      <div class="metric">
+        <div class="label">Committed releases</div>
+        <div class="value blue">2</div>
+        <div class="detail">October + November 2025</div>
+      </div>
+      <div class="metric">
+        <div class="label">Latest snapshot</div>
+        <div class="value">2025-11</div>
+        <div class="detail">358,233 canonical facts</div>
+      </div>
+      <div class="metric">
+        <div class="label">Quality status</div>
+        <div class="value green">PASSED</div>
+        <div class="detail">Both committed releases</div>
+      </div>
+      <div class="metric">
+        <div class="label">Latest Glue runtime</div>
+        <div class="value teal">196 s</div>
+        <div class="detail">2 x G.1X workers</div>
+      </div>
+      <div class="metric">
+        <div class="label">Terraform drift</div>
+        <div class="value green">0</div>
+        <div class="detail">No changes after deploy</div>
+      </div>
+    </section>
+
+    <section class="evidence">
+      <div class="panel">
+        <h2>Committed release history</h2>
+        <div class="release">
+          <div class="month">2025-10</div>
+          <div class="rows">357,098 source rows</div>
+          <div class="passed">SUCCEEDED</div>
+        </div>
+        <div class="release">
+          <div class="month">2025-11</div>
+          <div class="rows">358,233 source rows</div>
+          <div class="passed">SUCCEEDED</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>November revision comparison</h2>
+        <div class="revisions">
+          <div class="revision"><div class="name">Added facts</div><div class="number">2,214</div></div>
+          <div class="revision"><div class="name">Removed facts</div><div class="number">1,079</div></div>
+          <div class="revision"><div class="name">Revised facts</div><div class="number">24,279</div></div>
+          <div class="revision"><div class="name">Unchanged facts</div><div class="number">331,740</div></div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span><strong>Runtime:</strong> upload-driven, serverless, no always-on compute</span>
+      <span><strong>Controls:</strong> quality gates, lineage, replay, Lake Formation, SNS, US$3 budget alert</span>
+      <span>Verified 18 Oct 2026 NZDT</span>
+    </footer>
+  </main>
+</body>
+</html>
